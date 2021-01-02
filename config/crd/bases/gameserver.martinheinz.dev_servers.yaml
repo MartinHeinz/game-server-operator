@@ -88,6 +88,10 @@ spec:
                   type: object
                 type: array
                 x-kubernetes-list-type: atomic
+              gameName:
+                enum:
+                - CSGO
+                type: string
               port:
                 items:
                   format: int32
@@ -349,8 +353,7 @@ spec:
                     type: object
                 type: object
             required:
-            - envFrom
-            - port
+            - gameName
             - route
             type: object
           status:

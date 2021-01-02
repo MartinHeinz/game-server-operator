@@ -23,10 +23,10 @@ type ServerSpec struct {
 	GameName   GameName `json:"gameName"`
 	Route      string   `json:"route"`
 	// +listType=atomic
-	Port []*int32 `json:"port"`
+	Port []*int32 `json:"port,omitempty"`
 
 	// +listType=atomic
-	EnvFrom []corev1.EnvFromSource `json:"envFrom"`
+	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
 
 	Storage *ServerStorage `json:"storage,omitempty"`
 
@@ -34,7 +34,7 @@ type ServerSpec struct {
 	ResourceConstraints *corev1.ResourceRequirements `json:"resourceConstraints,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=Allow;Forbid;Replace
+// +kubebuilder:validation:Enum=CSGO
 type GameName string
 
 const (
