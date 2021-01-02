@@ -1,0 +1,7 @@
+apiVersion: gameserver.martinheinz.dev/v1alpha1
+kind: Server
+metadata:
+  name: server-sample
+spec:
+  # Add fields here
+  foo: bar
