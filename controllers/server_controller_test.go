@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -26,7 +27,7 @@ var _ = Describe("Server controller", func() {
 	)
 
 	Context("When updating Server Status", func() {
-		It("Should create Deployment and pods with game-specific image", func() {
+		It("Should create Deployment and Service with game-specific image and ports", func() {
 			By("By creating a new Server")
 			ctx := context.Background()
 
@@ -64,8 +65,20 @@ var _ = Describe("Server controller", func() {
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
-			Expect(createdDeployment.Spec.Template.Spec.Containers[0].Image).Should(Equal(csgo.Image))
-			Expect(createdDeployment.Spec.Template.Spec.Containers[0].Ports).Should(Equal(csgo.Ports))
+			Expect(createdDeployment.Spec.Template.Spec.Containers[0].Image).Should(Equal(csgo.container.Image))
+			Expect(createdDeployment.Spec.Template.Spec.Containers[0].Ports).Should(Equal(csgo.container.Ports))
+
+			serviceLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
+			createdService := &corev1.Service{}
+
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, serviceLookupKey, createdService); err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+			Expect(createdService.Spec.Selector["server"]).Should(Equal(ServerName))
+			Expect(createdService.Spec.Ports).Should(Equal(csgo.servicePorts))
 
 		})
 	})
