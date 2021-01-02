@@ -1,0 +1,34 @@
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - gameserver.martinheinz.dev
+  resources:
+  - servers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - gameserver.martinheinz.dev
+  resources:
+  - servers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - gameserver.martinheinz.dev
+  resources:
+  - servers/status
+  verbs:
+  - get
+  - patch
+  - update
