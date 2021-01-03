@@ -80,6 +80,20 @@ var _ = Describe("Server controller", func() {
 			Expect(createdService.Spec.Selector["server"]).Should(Equal(ServerName))
 			Expect(createdService.Spec.Ports).Should(Equal(csgo.servicePorts))
 
+			pvcLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
+			createdPvc := &corev1.PersistentVolumeClaim{}
+
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, pvcLookupKey, createdPvc); err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+			Expect(createdPvc.Spec.VolumeName).Should(Equal(ServerName))
+			Expect(createdPvc.Spec.Resources.Requests.Storage().String()).Should(Equal("1G"))
+
+			// Check whether ClaimName was correctly assigned
+			Expect(createdDeployment.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName).Should(Equal(ServerName))
 		})
 	})
 })

@@ -10,6 +10,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -80,7 +81,22 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	// TODO create PVC
+	foundPvc := &corev1.PersistentVolumeClaim{}
+	if err := r.Get(ctx, types.NamespacedName{Name: server.Name, Namespace: server.Namespace}, foundPvc); err != nil && errors.IsNotFound(err) {
+		// Define a new PersistentVolumeClaim
+		pvc := r.persistentVolumeClaimForServer(server)
+		log.Info("Creating a new PersistentVolumeClaim", "PersistentVolumeClaim.Namespace", pvc.Namespace, "PersistentVolumeClaim.Name", pvc.Name)
+		err = r.Create(ctx, pvc)
+		if err != nil {
+			log.Error(err, "Failed to create new PersistentVolumeClaim", "PersistentVolumeClaim.Namespace", pvc.Namespace, "PersistentVolumeClaim.Name", pvc.Name)
+			return ctrl.Result{}, err
+		}
+		// PersistentVolumeClaim created successfully - return and requeue
+		return ctrl.Result{Requeue: true}, nil
+	} else if err != nil {
+		log.Error(err, "Failed to get PersistentVolumeClaim")
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -116,7 +132,8 @@ func (r *ServerReconciler) podSpecForServerDeployment(m *gameserverv1alpha1.Serv
 	spec := &corev1.PodSpec{}
 	switch m.Spec.GameName {
 	case gameserverv1alpha1.CSGO:
-		spec = &corev1.PodSpec{Containers: []corev1.Container{csgo.container}}
+		spec = &corev1.PodSpec{Containers: []corev1.Container{csgo.container}, Volumes: []corev1.Volume{csgo.volume}}
+		spec.Volumes[0].VolumeSource.PersistentVolumeClaim.ClaimName = m.Name
 	default:
 		fmt.Printf("Game not found: %s.\n", m.Spec.GameName) // TODO Make this into error and propagate it up to be logged.
 	}
@@ -151,10 +168,36 @@ func (r *ServerReconciler) portSpecForServerService(m *gameserverv1alpha1.Server
 	return ports
 }
 
+func (r *ServerReconciler) persistentVolumeClaimForServer(m *gameserverv1alpha1.Server) *corev1.PersistentVolumeClaim {
+	ls := labelsForServer(m.Name)
+
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      m.Name,
+			Namespace: m.Namespace,
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: ls,
+			},
+			VolumeName:  m.Name,
+			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse("1G"),
+				},
+			},
+		},
+	}
+	ctrl.SetControllerReference(m, pvc, r.Scheme)
+	return pvc
+}
+
 type GameSetting struct {
 	name         gameserverv1alpha1.GameName
 	container    corev1.Container
 	servicePorts []corev1.ServicePort
+	volume       corev1.Volume
 }
 
 var (
@@ -168,6 +211,17 @@ var (
 				{ContainerPort: 27015, Protocol: corev1.ProtocolUDP},
 				{ContainerPort: 27020, Protocol: corev1.ProtocolTCP},
 				{ContainerPort: 27020, Protocol: corev1.ProtocolUDP},
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: "csgo-data", MountPath: "/home/steam/csgo"},
+			},
+		},
+		volume: corev1.Volume{
+			Name: "csgo-data",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "", // This gets set to server name (m.Name)
+				},
 			},
 		},
 		servicePorts: []corev1.ServicePort{
