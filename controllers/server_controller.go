@@ -134,6 +134,14 @@ func (r *ServerReconciler) podSpecForServerDeployment(m *gameserverv1alpha1.Serv
 	case gameserverv1alpha1.CSGO:
 		spec = &corev1.PodSpec{Containers: []corev1.Container{csgo.container}, Volumes: []corev1.Volume{csgo.volume}}
 		spec.Volumes[0].VolumeSource.PersistentVolumeClaim.ClaimName = m.Name
+		for i, res := range m.Spec.EnvFrom {
+			spec.Containers[0].EnvFrom = append(spec.Containers[0].EnvFrom, corev1.EnvFromSource{})
+			if res.ConfigMapRef != nil {
+				spec.Containers[0].EnvFrom[i].ConfigMapRef = res.ConfigMapRef
+			} else if res.SecretRef != nil {
+				spec.Containers[0].EnvFrom[i].SecretRef = res.SecretRef
+			}
+		}
 	default:
 		fmt.Printf("Game not found: %s.\n", m.Spec.GameName) // TODO Make this into error and propagate it up to be logged.
 	}
