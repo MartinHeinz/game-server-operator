@@ -45,9 +45,7 @@ const (
 // +k8s:openapi-gen=false
 type ServerStorage struct {
 	// +kubebuilder:validation:Pattern=^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$
-	Size                string                        `json:"size,omitempty"`
-	MountPath           string                        `json:"mountPath,omitempty"`
-	VolumeClaimTemplate *corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+	Size string `json:"size,omitempty"`
 }
 
 // ServerStatus defines the observed state of Server

@@ -34,6 +34,16 @@ var _ = Describe("Server controller", func() {
 			deploymentName := "csgo-server"
 			configMapName := "csgo-env-config"
 			secretName := "csgo-secret"
+			gameName := gameserverv1alpha1.CSGO
+
+			var gameSettings GameSetting
+
+			for i, game := range Games {
+				if game.Name == gameName {
+					gameSettings = Games[i]
+					break
+				}
+			}
 
 			configMap := &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
@@ -72,6 +82,7 @@ var _ = Describe("Server controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
+			storageSize := &gameserverv1alpha1.ServerStorage{Size: "2G"}
 			server := &gameserverv1alpha1.Server{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "servers.gameserver.martinheinz.dev/v1alpha1",
@@ -85,7 +96,7 @@ var _ = Describe("Server controller", func() {
 					ServerName: deploymentName,
 					GameName:   gameserverv1alpha1.CSGO,
 					Route:      deploymentName,
-					Storage:    nil, // TODO Use this to define size of PVC being created
+					Storage:    storageSize,
 					EnvFrom: []corev1.EnvFromSource{{
 						ConfigMapRef: &corev1.ConfigMapEnvSource{
 							LocalObjectReference: corev1.LocalObjectReference{Name: configMapName},
@@ -117,8 +128,8 @@ var _ = Describe("Server controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 			createdContainer := createdDeployment.Spec.Template.Spec.Containers[0]
-			Expect(createdContainer.Image).Should(Equal(csgo.container.Image))
-			Expect(createdContainer.Ports).Should(Equal(csgo.container.Ports))
+			Expect(createdContainer.Image).Should(Equal(gameSettings.Deployment.Spec.Template.Spec.Containers[0].Image))
+			Expect(createdContainer.Ports).Should(Equal(gameSettings.Deployment.Spec.Template.Spec.Containers[0].Ports))
 			Expect(createdContainer.EnvFrom).Should(Equal([]corev1.EnvFromSource{
 				{ConfigMapRef: &corev1.ConfigMapEnvSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -141,7 +152,7 @@ var _ = Describe("Server controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 			Expect(createdService.Spec.Selector["server"]).Should(Equal(ServerName))
-			Expect(createdService.Spec.Ports).Should(Equal(csgo.servicePorts))
+			Expect(createdService.Spec.Ports).Should(Equal(gameSettings.Service.Spec.Ports))
 
 			pvcLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
 			createdPvc := &corev1.PersistentVolumeClaim{}
@@ -153,7 +164,7 @@ var _ = Describe("Server controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 			Expect(createdPvc.Spec.VolumeName).Should(Equal(ServerName))
-			Expect(createdPvc.Spec.Resources.Requests.Storage().String()).Should(Equal("1G"))
+			Expect(createdPvc.Spec.Resources.Requests.Storage().String()).Should(Equal(storageSize.Size))
 
 			// Check whether ClaimName was correctly assigned
 			Expect(createdDeployment.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName).Should(Equal(ServerName))
