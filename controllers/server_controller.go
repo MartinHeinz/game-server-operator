@@ -6,6 +6,9 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"reflect"
+
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -56,55 +59,40 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
-	foundDep := &appsv1.Deployment{}
-	if err := r.Get(ctx, types.NamespacedName{Name: server.Name, Namespace: server.Namespace}, foundDep); err != nil && errors.IsNotFound(err) {
-		// Define a new Deployment
-		dep := r.deploymentForServer(server, &gameSettings)
-		log.Info("Creating a new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
-		err = r.Create(ctx, dep)
-		if err != nil {
-			log.Error(err, "Failed to create new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
-			return ctrl.Result{}, err
-		}
-		// Deployment created successfully - return and requeue
-		return ctrl.Result{Requeue: true}, nil
-	} else if err != nil {
-		log.Error(err, "Failed to get Deployment")
-		return ctrl.Result{}, err
+	found := []client.Object{
+		&appsv1.Deployment{},
+		&corev1.Service{},
+		&corev1.PersistentVolumeClaim{},
 	}
 
-	foundSvc := &corev1.Service{}
-	if err := r.Get(ctx, types.NamespacedName{Name: server.Name, Namespace: server.Namespace}, foundSvc); err != nil && errors.IsNotFound(err) {
-		// Define a new Service
-		svc := r.serviceForServer(server, &gameSettings)
-		log.Info("Creating a new Service", "Service.Namespace", svc.Namespace, "Service.Name", svc.Name)
-		err = r.Create(ctx, svc)
-		if err != nil {
-			log.Error(err, "Failed to create new Service", "Service.Namespace", svc.Namespace, "Service.Name", svc.Name)
-			return ctrl.Result{}, err
-		}
-		// Service created successfully - return and requeue
-		return ctrl.Result{Requeue: true}, nil
-	} else if err != nil {
-		log.Error(err, "Failed to get Service")
-		return ctrl.Result{}, err
-	}
+	for _, f := range found {
+		t := reflect.TypeOf(f).String()
+		if err := r.Get(ctx, types.NamespacedName{Name: server.Name, Namespace: server.Namespace}, f); err != nil && errors.IsNotFound(err) {
+			// Define a new Object
+			obj := client.Object(nil)
 
-	foundPvc := &corev1.PersistentVolumeClaim{}
-	if err := r.Get(ctx, types.NamespacedName{Name: server.Name, Namespace: server.Namespace}, foundPvc); err != nil && errors.IsNotFound(err) {
-		// Define a new PersistentVolumeClaim
-		pvc := r.persistentVolumeClaimForServer(server, &gameSettings)
-		log.Info("Creating a new PersistentVolumeClaim", "PersistentVolumeClaim.Namespace", pvc.Namespace, "PersistentVolumeClaim.Name", pvc.Name)
-		err = r.Create(ctx, pvc)
-		if err != nil {
-			log.Error(err, "Failed to create new PersistentVolumeClaim", "PersistentVolumeClaim.Namespace", pvc.Namespace, "PersistentVolumeClaim.Name", pvc.Name)
+			switch f.(type) {
+			default:
+				log.Info("Invalid Kind")
+			case *appsv1.Deployment:
+				obj = r.deploymentForServer(server, &gameSettings)
+			case *corev1.Service:
+				obj = r.serviceForServer(server, &gameSettings)
+			case *corev1.PersistentVolumeClaim:
+				obj = r.persistentVolumeClaimForServer(server, &gameSettings)
+			}
+			log.Info(fmt.Sprintf("Creating a new %s", t), fmt.Sprintf("%s.Namespace", t), obj.GetNamespace(), fmt.Sprintf("%s.Name", t), obj.GetName())
+			err = r.Create(ctx, obj)
+			if err != nil {
+				log.Error(err, fmt.Sprintf("Failed to create new %s", t), fmt.Sprintf("%s.Namespace", t), obj.GetNamespace(), fmt.Sprintf("%s.Name", t), obj.GetName())
+				return ctrl.Result{}, err
+			}
+			// Object created successfully - return and requeue
+			return ctrl.Result{Requeue: true}, nil
+		} else if err != nil {
+			log.Error(err, fmt.Sprintf("Failed to get %s", t))
 			return ctrl.Result{}, err
 		}
-		// PersistentVolumeClaim created successfully - return and requeue
-		return ctrl.Result{Requeue: true}, nil
-	} else if err != nil {
-		log.Error(err, "Failed to get PersistentVolumeClaim")
-		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -171,6 +159,12 @@ type GameSetting struct {
 	Deployment            appsv1.Deployment
 	Service               corev1.Service
 	PersistentVolumeClaim corev1.PersistentVolumeClaim
+}
+
+type GameInstance struct {
+	Deployment            *appsv1.Deployment
+	Service               *corev1.Service
+	PersistentVolumeClaim *corev1.PersistentVolumeClaim
 }
 
 var (
