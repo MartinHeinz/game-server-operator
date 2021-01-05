@@ -1,7 +1,17 @@
 apiVersion: gameserver.martinheinz.dev/v1alpha1
 kind: Server
 metadata:
-  name: server-sample
+  name: csgo
 spec:
-  # Add fields here
-  foo: bar
+  serverName: csgo
+  gameName: "CSGO"
+  route: csgo.example.com
+  port:
+    - 27015  # Dummy
+  envFrom:
+    - configMapRef:
+        name: csgo
+    - secretRef:
+        name: csgo
+  storage:
+    size: 2Gi

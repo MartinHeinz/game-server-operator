@@ -23,7 +23,7 @@ type ServerSpec struct {
 	GameName   GameName `json:"gameName"`
 	Route      string   `json:"route"`
 	// +listType=atomic
-	Port []*int32 `json:"port,omitempty"`
+	Port []*int32 `json:"port,omitempty"` // TODO Use it in code or make it optional (and use []corev1.ServicePort?)
 
 	// +listType=atomic
 	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
