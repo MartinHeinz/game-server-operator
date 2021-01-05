@@ -38,9 +38,9 @@ var _ = Describe("Server controller", func() {
 
 			var gameSettings GameSetting
 
-			for i, game := range Games {
-				if game.Name == gameName {
-					gameSettings = Games[i]
+			for name, game := range Games {
+				if name == gameName {
+					gameSettings = game
 					break
 				}
 			}

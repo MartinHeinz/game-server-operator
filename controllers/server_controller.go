@@ -52,9 +52,9 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	var gameSettings GameSetting
 
-	for i, game := range Games {
-		if game.Name == gameName {
-			gameSettings = Games[i]
+	for name, game := range Games {
+		if name == gameName {
+			gameSettings = game
 			break
 		}
 	}
@@ -155,7 +155,6 @@ func (r *ServerReconciler) persistentVolumeClaimForServer(m *gameserverv1alpha1.
 }
 
 type GameSetting struct {
-	Name                  gameserverv1alpha1.GameName
 	Deployment            appsv1.Deployment
 	Service               corev1.Service
 	PersistentVolumeClaim corev1.PersistentVolumeClaim
@@ -168,10 +167,8 @@ type GameInstance struct {
 }
 
 var (
-	// TODO make this a map with game Name as a key
-	Games = []GameSetting{{
-		Name: gameserverv1alpha1.CSGO,
-		Deployment: appsv1.Deployment{
+	Games = map[gameserverv1alpha1.GameName]GameSetting{
+		gameserverv1alpha1.CSGO: {Deployment: appsv1.Deployment{
 			TypeMeta:   metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{},
 			Spec: appsv1.DeploymentSpec{
@@ -204,23 +201,23 @@ var (
 				},
 			},
 		},
-		Service: corev1.Service{
-			Spec: corev1.ServiceSpec{
-				Ports: []corev1.ServicePort{
-					{Name: "27015-tcp", Port: 27015, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolTCP},
-					{Name: "27015-udp", Port: 27015, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolUDP},
-					{Name: "27020-tcp", Port: 27020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27020, StrVal: ""}, Protocol: corev1.ProtocolTCP},
-					{Name: "27020-udp", Port: 27020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27020, StrVal: ""}, Protocol: corev1.ProtocolUDP},
+			Service: corev1.Service{
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{Name: "27015-tcp", Port: 27015, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolTCP},
+						{Name: "27015-udp", Port: 27015, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolUDP},
+						{Name: "27020-tcp", Port: 27020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27020, StrVal: ""}, Protocol: corev1.ProtocolTCP},
+						{Name: "27020-udp", Port: 27020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27020, StrVal: ""}, Protocol: corev1.ProtocolUDP},
+					},
 				},
 			},
-		},
-		PersistentVolumeClaim: corev1.PersistentVolumeClaim{
-			Spec: corev1.PersistentVolumeClaimSpec{
-				VolumeName:  "", // This gets set to server name (m.Name)
-				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			PersistentVolumeClaim: corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
+					VolumeName:  "", // This gets set to server name (m.Name)
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				},
 			},
-		},
-	}}
+		}}
 )
 
 func labelsForServer(name string) map[string]string {
