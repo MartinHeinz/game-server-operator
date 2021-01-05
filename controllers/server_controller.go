@@ -202,6 +202,9 @@ var (
 			},
 		},
 			Service: corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "csgo",
+				},
 				Spec: corev1.ServiceSpec{
 					Ports: []corev1.ServicePort{
 						{Name: "27015-tcp", Port: 27015, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolTCP},
