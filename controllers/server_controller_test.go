@@ -4,6 +4,7 @@ import (
 	"context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/networking/v1"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -34,6 +35,7 @@ var _ = Describe("Server controller", func() {
 			deploymentName := "csgo-server"
 			configMapName := "csgo-env-config"
 			secretName := "csgo-secret"
+			routeName := "csgo.example.com"
 			gameName := gameserverv1alpha1.CSGO
 
 			var gameSettings GameSetting
@@ -95,7 +97,7 @@ var _ = Describe("Server controller", func() {
 				Spec: gameserverv1alpha1.ServerSpec{
 					ServerName: deploymentName,
 					GameName:   gameserverv1alpha1.CSGO,
-					Route:      deploymentName,
+					Route:      routeName,
 					Storage:    storageSize,
 					EnvFrom: []corev1.EnvFromSource{{
 						ConfigMapRef: &corev1.ConfigMapEnvSource{
@@ -118,7 +120,6 @@ var _ = Describe("Server controller", func() {
 			createdDeployment := &appsv1.Deployment{}
 
 			Eventually(func() bool {
-
 				if err := k8sClient.Get(ctx, serverLookupKey, createdServer); err != nil {
 					return false
 				}
@@ -127,6 +128,7 @@ var _ = Describe("Server controller", func() {
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
+
 			createdContainer := createdDeployment.Spec.Template.Spec.Containers[0]
 			Expect(createdContainer.Image).Should(Equal(gameSettings.Deployment.Spec.Template.Spec.Containers[0].Image))
 			Expect(createdContainer.Ports).Should(Equal(gameSettings.Deployment.Spec.Template.Spec.Containers[0].Ports))
@@ -145,14 +147,22 @@ var _ = Describe("Server controller", func() {
 			serviceLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
 			createdService := &corev1.Service{}
 
+			ingressLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
+			createdIngress := &v1.Ingress{}
+
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, serviceLookupKey, createdService); err != nil {
+					return false
+				}
+				if err := k8sClient.Get(ctx, ingressLookupKey, createdIngress); err != nil {
 					return false
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
 			Expect(createdService.Spec.Selector["server"]).Should(Equal(ServerName))
 			Expect(createdService.Spec.Ports).Should(Equal(gameSettings.Service.Spec.Ports))
+
+			Expect(createdIngress.Spec.Rules[0].Host).Should(Equal(routeName))
 
 			pvcLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
 			createdPvc := &corev1.PersistentVolumeClaim{}
