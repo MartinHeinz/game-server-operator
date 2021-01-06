@@ -9,7 +9,7 @@ operator-sdk create api --group gameserver --version v1alpha1 --kind Server
 
 ```shell
 kind delete cluster --name kind
-kind create cluster --config hack/kind-config.yaml --image=kindest/node:v1.20.0
+kind create cluster --config config/kind/kind-config.yaml --image=kindest/node:v1.20.0
 kind export kubeconfig
 
 make deploy IMG=$IMAGE
