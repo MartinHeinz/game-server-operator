@@ -8,9 +8,14 @@ operator-sdk create api --group gameserver --version v1alpha1 --kind Server
 # Development Environment
 
 ```shell
-kind delete cluster --name kind
-kind create cluster --config config/kind/kind-config.yaml --image=kindest/node:v1.20.0
-kind export kubeconfig
+kind delete cluster --name operator
+kind create cluster --name operator --config config/kind/kind-config.yaml --image=kindest/node:v1.20.0
+kind --name operator export kubeconfig
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/kind/deploy.yaml
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=90s
 
 make deploy IMG=$IMAGE
 kubectl get crd
