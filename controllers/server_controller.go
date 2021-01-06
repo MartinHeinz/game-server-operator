@@ -79,7 +79,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			case *corev1.Service:
 				obj = r.serviceForServer(server, &gameSettings)
 			case *corev1.PersistentVolumeClaim:
-				obj = r.persistentVolumeClaimForServer(server, &gameSettings)
+				obj = r.persistentVolumeClaimForServer(server, &gameSettings) // TODO Always use existing PVC if there is one
 			}
 			log.Info(fmt.Sprintf("Creating a new %s", t), fmt.Sprintf("%s.Namespace", t), obj.GetNamespace(), fmt.Sprintf("%s.Name", t), obj.GetName())
 			err = r.Create(ctx, obj)
@@ -185,8 +185,8 @@ var (
 							},
 						}},
 						Containers: []corev1.Container{{
-							Image: "kmallea/csgo:latest",
 							Name:  "csgo",
+							Image: "kmallea/csgo:latest",
 							Ports: []corev1.ContainerPort{
 								{ContainerPort: 27015, Protocol: corev1.ProtocolTCP},
 								{ContainerPort: 27015, Protocol: corev1.ProtocolUDP},
@@ -196,6 +196,7 @@ var (
 							VolumeMounts: []corev1.VolumeMount{
 								{Name: "csgo-data", MountPath: "/home/steam/csgo"},
 							},
+							ImagePullPolicy: corev1.PullIfNotPresent,
 						}},
 					},
 				},
