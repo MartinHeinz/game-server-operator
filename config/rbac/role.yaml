@@ -10,6 +10,31 @@ rules:
   - apps
   resources:
   - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
   - services
   verbs:
   - create
@@ -26,6 +51,7 @@ rules:
   verbs:
   - get
   - list
+  - watch
 - apiGroups:
   - gameserver.martinheinz.dev
   resources:
