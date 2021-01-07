@@ -4,7 +4,7 @@ import (
 	"context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/networking/v1"
+	"k8s.io/api/networking/v1beta1"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -148,7 +148,7 @@ var _ = Describe("Server controller", func() {
 			createdService := &corev1.Service{}
 
 			ingressLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
-			createdIngress := &v1.Ingress{}
+			createdIngress := &v1beta1.Ingress{}
 
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, serviceLookupKey, createdService); err != nil {

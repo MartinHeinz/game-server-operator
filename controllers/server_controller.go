@@ -7,7 +7,7 @@ package controllers
 import (
 	"context"
 	"fmt"
-	v1 "k8s.io/api/networking/v1"
+	"k8s.io/api/networking/v1beta1"
 	"reflect"
 
 	"github.com/go-logr/logr"
@@ -66,7 +66,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		&appsv1.Deployment{},
 		&corev1.Service{},
 		&corev1.PersistentVolumeClaim{},
-		&v1.Ingress{},
+		&v1beta1.Ingress{},
 	}
 
 	for _, f := range found {
@@ -84,7 +84,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				obj = r.serviceForServer(server, &gameSettings)
 			case *corev1.PersistentVolumeClaim:
 				obj = r.persistentVolumeClaimForServer(server, &gameSettings) // TODO Always use existing PVC if there is one
-			case *v1.Ingress:
+			case *v1beta1.Ingress:
 				obj = r.ingressForServer(server, &gameSettings)
 			}
 			log.Info(fmt.Sprintf("Creating a new %s", t), fmt.Sprintf("%s.Namespace", t), obj.GetNamespace(), fmt.Sprintf("%s.Name", t), obj.GetName())
@@ -160,7 +160,7 @@ func (r *ServerReconciler) persistentVolumeClaimForServer(m *gameserverv1alpha1.
 	return &gs.PersistentVolumeClaim
 }
 
-func (r *ServerReconciler) ingressForServer(m *gameserverv1alpha1.Server, gs *GameSetting) *v1.Ingress { // TODO Test this
+func (r *ServerReconciler) ingressForServer(m *gameserverv1alpha1.Server, gs *GameSetting) *v1beta1.Ingress {
 	gs.Ingress.ObjectMeta = metav1.ObjectMeta{
 		Name:      m.Name,
 		Namespace: m.Namespace,
@@ -175,7 +175,7 @@ type GameSetting struct {
 	Deployment            appsv1.Deployment
 	Service               corev1.Service
 	PersistentVolumeClaim corev1.PersistentVolumeClaim
-	Ingress               v1.Ingress
+	Ingress               v1beta1.Ingress
 }
 
 var (
@@ -233,37 +233,29 @@ var (
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
 			},
-			Ingress: v1.Ingress{
+			Ingress: v1beta1.Ingress{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "csgo",
 				},
-				Spec: v1.IngressSpec{
-					Rules: []v1.IngressRule{
+				Spec: v1beta1.IngressSpec{
+					Rules: []v1beta1.IngressRule{
 						{
 							Host: "", // Populated dynamically from "Route" attribute
-							IngressRuleValue: v1.IngressRuleValue{HTTP: &v1.HTTPIngressRuleValue{Paths: []v1.HTTPIngressPath{
+							IngressRuleValue: v1beta1.IngressRuleValue{HTTP: &v1beta1.HTTPIngressRuleValue{Paths: []v1beta1.HTTPIngressPath{
 								{
 									Path: "/",
 									//PathType: nil,  // Prefix
-									Backend: v1.IngressBackend{
-										Service: &v1.IngressServiceBackend{
-											Name: "csgo",
-											Port: v1.ServiceBackendPort{
-												Number: 27015,
-											},
-										},
+									Backend: v1beta1.IngressBackend{
+										ServiceName: "csgo",
+										ServicePort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""},
 									},
 								},
 								{
 									Path: "/",
 									//PathType: nil,  // Prefix
-									Backend: v1.IngressBackend{
-										Service: &v1.IngressServiceBackend{
-											Name: "csgo",
-											Port: v1.ServiceBackendPort{
-												Number: 27020,
-											},
-										},
+									Backend: v1beta1.IngressBackend{
+										ServiceName: "csgo",
+										ServicePort: intstr.IntOrString{Type: 0, IntVal: 27020, StrVal: ""},
 									},
 								},
 							}}},
