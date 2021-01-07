@@ -15,21 +15,3 @@ spec:
         name: csgo
   storage:
     size: 30Gi
----
-# Temporary example of Ingress
-apiVersion: networking.k8s.io/v1beta1
-kind: Ingress
-metadata:
-  name: csgo
-spec:
-  rules:
-    - http:
-        paths:
-          - path: /
-            backend:
-              serviceName: csgo
-              servicePort: 27015
-          - path: /
-            backend:
-              serviceName: csgo
-              servicePort: 27020
