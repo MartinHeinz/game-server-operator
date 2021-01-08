@@ -22,6 +22,7 @@ kubectl get crd
 NAME                                  CREATED AT
 servers.gameserver.martinheinz.dev    2021-01-06T13:03:10Z
 
+kubectl apply -f config/samples/config.yaml
 kubectl get pods -n game-server-operator-system
 NAME                                                       READY   STATUS             RESTARTS   AGE
 game-server-operator-controller-manager-6c7758447b-qnlhq   2/2     Running            0          8s
@@ -37,6 +38,7 @@ docker build -t $IMAGE .
 docker push $IMAGE # kind load docker-image $IMAGE
 make deploy IMG=$IMAGE
 
+kubectl apply -f config/samples/config.yaml
 kubectl create -f config/samples/gameserver_v1alpha1_server.yaml
 kubectl get pods
 ```

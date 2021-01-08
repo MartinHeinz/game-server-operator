@@ -155,7 +155,7 @@ func (r *ServerReconciler) persistentVolumeClaimForServer(m *gameserverv1alpha1.
 	}
 	gs.PersistentVolumeClaim.Spec.VolumeName = m.Name
 	gs.PersistentVolumeClaim.Spec.Resources.Requests = corev1.ResourceList{
-		corev1.ResourceStorage: resource.MustParse(m.Spec.Storage.Size),
+		corev1.ResourceStorage: resource.MustParse(m.Spec.Storage.Size), // TODO Does not propagate correctly?
 	}
 
 	ctrl.SetControllerReference(m, &gs.PersistentVolumeClaim, r.Scheme)
@@ -245,19 +245,11 @@ var (
 							Host: "", // Populated dynamically from "Route" attribute
 							IngressRuleValue: v1beta1.IngressRuleValue{HTTP: &v1beta1.HTTPIngressRuleValue{Paths: []v1beta1.HTTPIngressPath{
 								{
-									Path: "/",
-									//PathType: nil,  // Prefix
+									Path:     "/",
+									PathType: func(val v1beta1.PathType) *v1beta1.PathType { return &val }(v1beta1.PathTypePrefix),
 									Backend: v1beta1.IngressBackend{
 										ServiceName: "csgo",
 										ServicePort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""},
-									},
-								},
-								{
-									Path: "/",
-									//PathType: nil,  // Prefix
-									Backend: v1beta1.IngressBackend{
-										ServiceName: "csgo",
-										ServicePort: intstr.IntOrString{Type: 0, IntVal: 27020, StrVal: ""},
 									},
 								},
 							}}},

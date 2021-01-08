@@ -16,3 +16,4 @@ metadata:
   namespace: default
 data:
   SERVER_HOSTNAME: csgo.default.svc.cluster.local
+  LAN: "1"

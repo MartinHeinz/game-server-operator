@@ -8,6 +8,9 @@ nodes:
       nodeRegistration:
         kubeletExtraArgs:
           node-labels: "ingress-ready=true"
+    extraMounts:
+      - hostPath: ./shared-storage
+        containerPath: /var/local-path-provisioner
     extraPortMappings:
       - containerPort: 80
         hostPort: 80
