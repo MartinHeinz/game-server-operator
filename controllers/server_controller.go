@@ -81,11 +81,11 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			default:
 				log.Info("Invalid Kind")
 			case *appsv1.Deployment:
-				obj = r.deploymentForServer(server, &gameSettings)
+				obj = r.deploymentForServer(server, &gameSettings) // TODO Reconciliation fails if Deployment is deleted (CM, Secret issues)
 			case *corev1.Service:
 				obj = r.serviceForServer(server, &gameSettings)
 			case *corev1.PersistentVolumeClaim:
-				obj = r.persistentVolumeClaimForServer(server, &gameSettings) // TODO Always use existing PVC if there is one
+				obj = r.persistentVolumeClaimForServer(server, &gameSettings)
 			case *v1beta1.Ingress:
 				obj = r.ingressForServer(server, &gameSettings)
 			}
@@ -149,17 +149,20 @@ func (r *ServerReconciler) serviceForServer(m *gameserverv1alpha1.Server, gs *Ga
 
 func (r *ServerReconciler) persistentVolumeClaimForServer(m *gameserverv1alpha1.Server, gs *GameSetting) *corev1.PersistentVolumeClaim {
 	ls := labelsForServer(m.Name)
+	//name := m.Spec.ServerName
+	//if m.Spec.Storage.Name != "" {
+	//	name = m.Spec.Storage.Name
+	//}
 
 	gs.PersistentVolumeClaim.ObjectMeta = metav1.ObjectMeta{
+		//Name:      name,
 		Name:      m.Name,
 		Namespace: m.Namespace,
+		Labels:    ls,
 	}
-	gs.PersistentVolumeClaim.Spec.Selector = &metav1.LabelSelector{
-		MatchLabels: ls,
-	}
-	gs.PersistentVolumeClaim.Spec.VolumeName = m.Name
+
 	gs.PersistentVolumeClaim.Spec.Resources.Requests = corev1.ResourceList{
-		corev1.ResourceStorage: resource.MustParse(m.Spec.Storage.Size), // TODO Does not propagate correctly?
+		corev1.ResourceStorage: resource.MustParse(m.Spec.Storage.Size),
 	}
 
 	ctrl.SetControllerReference(m, &gs.PersistentVolumeClaim, r.Scheme)
@@ -231,8 +234,10 @@ var (
 				},
 			},
 			PersistentVolumeClaim: corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "csgo",
+				},
 				Spec: corev1.PersistentVolumeClaimSpec{
-					VolumeName:  "", // This gets set to server name (m.Name)
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
 			},

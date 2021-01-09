@@ -85,7 +85,7 @@ var _ = Describe("Server controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
-			storageSize := &gameserverv1alpha1.ServerStorage{Size: "2G"}
+			storage := &gameserverv1alpha1.ServerStorage{Size: "2G"}
 			server := &gameserverv1alpha1.Server{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "servers.gameserver.martinheinz.dev/v1alpha1",
@@ -113,7 +113,7 @@ var _ = Describe("Server controller", func() {
 						},
 					},
 					},
-					Storage: storageSize,
+					Storage: storage,
 				},
 			}
 			Expect(k8sClient.Create(ctx, server)).Should(Succeed())
@@ -178,8 +178,8 @@ var _ = Describe("Server controller", func() {
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
-			Expect(createdPvc.Spec.VolumeName).Should(Equal(ServerName))
-			Expect(createdPvc.Spec.Resources.Requests.Storage().String()).Should(Equal(storageSize.Size))
+			Expect(createdPvc.Spec.Resources.Requests.Storage().String()).Should(Equal(storage.Size))
+			Expect(createdPvc.Name).Should(Equal(ServerName))
 
 			// Check whether ClaimName was correctly assigned
 			Expect(createdDeployment.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName).Should(Equal(ServerName))

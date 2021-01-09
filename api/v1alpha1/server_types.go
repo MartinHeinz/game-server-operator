@@ -48,6 +48,8 @@ const (
 type ServerStorage struct {
 	// +kubebuilder:validation:Pattern=^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$
 	Size string `json:"size,omitempty"`
+	// +optional
+	//Name string `json:"name"`
 }
 
 // ServerStatus defines the observed state of Server

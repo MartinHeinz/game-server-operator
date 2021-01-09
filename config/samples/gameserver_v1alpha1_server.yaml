@@ -16,4 +16,7 @@ spec:
     - secretRef:
         name: csgo
   storage:
-    size: 10Gi
+#    # This name defaults to .spec.serverName, if PVC with specified name exists,
+#    # new one will NOT be created and existing will be used instead, regardless of the "size"
+#    name: "csgo"
+    size: 12Gi
