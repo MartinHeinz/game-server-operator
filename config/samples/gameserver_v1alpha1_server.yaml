@@ -6,12 +6,14 @@ spec:
   serverName: csgo
   gameName: "CSGO"
   route: csgo.example.com
-  port:
-    - 27015  # Dummy
+  port:  # These are defaults, can be omitted
+    - port: 27015
+      targetPort: 27015
+      nodePort: 30015
   envFrom:
     - configMapRef:
         name: csgo
     - secretRef:
         name: csgo
   storage:
-    size: 30Gi
+    size: 10Gi

@@ -139,6 +139,10 @@ func (r *ServerReconciler) serviceForServer(m *gameserverv1alpha1.Server, gs *Ga
 	}
 	gs.Service.Spec.Selector = ls
 
+	if m.Spec.Ports != nil {
+		gs.Service.Spec.Ports = m.Spec.Ports
+	}
+
 	ctrl.SetControllerReference(m, &gs.Service, r.Scheme)
 	return &gs.Service
 }
