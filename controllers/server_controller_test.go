@@ -4,6 +4,7 @@ import (
 	"context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"time"
 
@@ -64,6 +65,17 @@ var _ = Describe("Server controller", func() {
 				StringData: map[string]string{"SERVER_PASSWORD": "password"},
 			}
 
+			resources := &corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("250m"),
+					corev1.ResourceMemory: resource.MustParse("64Mi"),
+				},
+				Limits: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("2"),
+					corev1.ResourceMemory: resource.MustParse("1Gi"),
+				},
+			}
+
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 
 			configMapLookupKey := types.NamespacedName{Name: configMapName, Namespace: ServerNamespace}
@@ -110,7 +122,8 @@ var _ = Describe("Server controller", func() {
 						},
 					},
 					},
-					Storage: storage,
+					Storage:             storage,
+					ResourceConstraints: resources,
 				},
 			}
 			Expect(k8sClient.Create(ctx, server)).Should(Succeed())
@@ -145,6 +158,8 @@ var _ = Describe("Server controller", func() {
 					},
 				}},
 			}))
+
+			Expect(&createdContainer.Resources).Should(Equal(resources))
 
 			serviceLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
 			createdService := &corev1.Service{}

@@ -19,3 +19,10 @@ spec:
 #    # new one will NOT be created and existing will be used instead, regardless of the "size"
 #    name: "csgo"
     size: 12Gi
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "2"

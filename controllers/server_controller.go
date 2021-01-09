@@ -81,6 +81,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			case *corev1.Service:
 				obj = r.serviceForServer(server, &gameSettings)
 			case *corev1.PersistentVolumeClaim:
+				// TODO To preserve PVC after Server deletion - delete PVC OwnersReference - Use Mutating Admission Webhook - https://book.kubebuilder.io/reference/webhook-for-core-types.html
 				obj = r.persistentVolumeClaimForServer(server, &gameSettings)
 			}
 			log.Info(fmt.Sprintf("Creating a new %s", t), fmt.Sprintf("%s.Namespace", t), obj.GetNamespace(), fmt.Sprintf("%s.Name", t), obj.GetName())
@@ -120,6 +121,11 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 			gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom[i].SecretRef = res.SecretRef
 		}
 	}
+
+	if m.Spec.ResourceConstraints != nil {
+		gs.Deployment.Spec.Template.Spec.Containers[0].Resources = *m.Spec.ResourceConstraints
+	}
+
 	ctrl.SetControllerReference(m, &gs.Deployment, r.Scheme)
 	return &gs.Deployment
 }
