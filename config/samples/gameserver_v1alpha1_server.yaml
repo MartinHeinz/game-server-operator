@@ -5,7 +5,6 @@ metadata:
 spec:
   serverName: csgo
   gameName: "CSGO"
-  route: csgo.example.com
   port:  # These are defaults, can be omitted
     - port: 27015
       targetPort: 27015

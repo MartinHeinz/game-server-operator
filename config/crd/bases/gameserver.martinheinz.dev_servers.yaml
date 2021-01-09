@@ -174,8 +174,6 @@ spec:
                       to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                     type: object
                 type: object
-              route:
-                type: string
               serverName:
                 description: If omitted, defaults to CRD name
                 type: string
@@ -188,7 +186,6 @@ spec:
                 type: object
             required:
             - gameName
-            - route
             type: object
           status:
             description: ServerStatus defines the observed state of Server

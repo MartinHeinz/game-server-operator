@@ -4,7 +4,6 @@ import (
 	"context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"time"
 
@@ -36,7 +35,6 @@ var _ = Describe("Server controller", func() {
 			deploymentName := "csgo-server"
 			configMapName := "csgo-env-config"
 			secretName := "csgo-secret"
-			routeName := "csgo.example.com"
 			gameName := gameserverv1alpha1.CSGO
 
 			var gameSettings GameSetting
@@ -98,7 +96,6 @@ var _ = Describe("Server controller", func() {
 				Spec: gameserverv1alpha1.ServerSpec{
 					ServerName: deploymentName,
 					GameName:   gameserverv1alpha1.CSGO,
-					Route:      routeName,
 					Ports: []corev1.ServicePort{
 						{Name: "27015-tcp", Port: 27015, NodePort: 30020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolTCP},
 						{Name: "27015-udp", Port: 27015, NodePort: 30020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolUDP},
@@ -152,22 +149,14 @@ var _ = Describe("Server controller", func() {
 			serviceLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
 			createdService := &corev1.Service{}
 
-			ingressLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
-			createdIngress := &v1beta1.Ingress{}
-
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, serviceLookupKey, createdService); err != nil {
-					return false
-				}
-				if err := k8sClient.Get(ctx, ingressLookupKey, createdIngress); err != nil {
 					return false
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
 			Expect(createdService.Spec.Selector["server"]).Should(Equal(ServerName))
 			Expect(createdService.Spec.Ports).Should(Equal(server.Spec.Ports))
-
-			Expect(createdIngress.Spec.Rules[0].Host).Should(Equal(routeName))
 
 			pvcLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
 			createdPvc := &corev1.PersistentVolumeClaim{}

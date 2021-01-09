@@ -7,7 +7,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"k8s.io/api/networking/v1beta1"
 	"reflect"
 
 	"github.com/go-logr/logr"
@@ -39,8 +38,6 @@ type ServerReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services;persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=core,resources=services;persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
@@ -68,7 +65,6 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		&appsv1.Deployment{},
 		&corev1.Service{},
 		&corev1.PersistentVolumeClaim{},
-		&v1beta1.Ingress{},
 	}
 
 	for _, f := range found {
@@ -86,8 +82,6 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				obj = r.serviceForServer(server, &gameSettings)
 			case *corev1.PersistentVolumeClaim:
 				obj = r.persistentVolumeClaimForServer(server, &gameSettings)
-			case *v1beta1.Ingress:
-				obj = r.ingressForServer(server, &gameSettings)
 			}
 			log.Info(fmt.Sprintf("Creating a new %s", t), fmt.Sprintf("%s.Namespace", t), obj.GetNamespace(), fmt.Sprintf("%s.Name", t), obj.GetName())
 			err = r.Create(ctx, obj)
@@ -169,22 +163,10 @@ func (r *ServerReconciler) persistentVolumeClaimForServer(m *gameserverv1alpha1.
 	return &gs.PersistentVolumeClaim
 }
 
-func (r *ServerReconciler) ingressForServer(m *gameserverv1alpha1.Server, gs *GameSetting) *v1beta1.Ingress {
-	gs.Ingress.ObjectMeta = metav1.ObjectMeta{
-		Name:      m.Name,
-		Namespace: m.Namespace,
-	}
-	gs.Ingress.Spec.Rules[0].Host = m.Spec.Route
-
-	ctrl.SetControllerReference(m, &gs.Ingress, r.Scheme)
-	return &gs.Ingress
-}
-
 type GameSetting struct {
 	Deployment            appsv1.Deployment
 	Service               corev1.Service
 	PersistentVolumeClaim corev1.PersistentVolumeClaim
-	Ingress               v1beta1.Ingress
 }
 
 var (
@@ -239,28 +221,6 @@ var (
 				},
 				Spec: corev1.PersistentVolumeClaimSpec{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				},
-			},
-			Ingress: v1beta1.Ingress{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "csgo",
-				},
-				Spec: v1beta1.IngressSpec{
-					Rules: []v1beta1.IngressRule{
-						{
-							Host: "", // Populated dynamically from "Route" attribute
-							IngressRuleValue: v1beta1.IngressRuleValue{HTTP: &v1beta1.HTTPIngressRuleValue{Paths: []v1beta1.HTTPIngressPath{
-								{
-									Path:     "/",
-									PathType: func(val v1beta1.PathType) *v1beta1.PathType { return &val }(v1beta1.PathTypePrefix),
-									Backend: v1beta1.IngressBackend{
-										ServiceName: "csgo",
-										ServicePort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""},
-									},
-								},
-							}}},
-						},
-					},
 				},
 			},
 		}}

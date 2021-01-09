@@ -21,7 +21,6 @@ type ServerSpec struct {
 	// +optional
 	ServerName string   `json:"serverName,omitempty"`
 	GameName   GameName `json:"gameName"`
-	Route      string   `json:"route"`
 
 	// +listType=atomic
 	// +optional
