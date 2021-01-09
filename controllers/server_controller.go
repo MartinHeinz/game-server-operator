@@ -204,8 +204,6 @@ var (
 							Ports: []corev1.ContainerPort{
 								{ContainerPort: 27015, Protocol: corev1.ProtocolTCP},
 								{ContainerPort: 27015, Protocol: corev1.ProtocolUDP},
-								{ContainerPort: 27020, Protocol: corev1.ProtocolTCP},
-								{ContainerPort: 27020, Protocol: corev1.ProtocolUDP},
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{Name: "csgo-data", MountPath: "/home/steam/csgo"},
@@ -222,11 +220,10 @@ var (
 				},
 				Spec: corev1.ServiceSpec{
 					Ports: []corev1.ServicePort{
-						{Name: "27015-tcp", Port: 27015, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolTCP},
-						{Name: "27015-udp", Port: 27015, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolUDP},
-						{Name: "27020-tcp", Port: 27020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27020, StrVal: ""}, Protocol: corev1.ProtocolTCP},
-						{Name: "27020-udp", Port: 27020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27020, StrVal: ""}, Protocol: corev1.ProtocolUDP},
+						{Name: "27015-tcp", Port: 27015, NodePort: 30015, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolTCP},
+						{Name: "27015-udp", Port: 27015, NodePort: 30015, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolUDP},
 					},
+					Type: corev1.ServiceTypeNodePort,
 				},
 			},
 			PersistentVolumeClaim: corev1.PersistentVolumeClaim{

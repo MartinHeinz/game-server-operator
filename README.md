@@ -79,3 +79,30 @@ players : 0 humans, 1 bots (12/0 max) (hibernating)
 # 2 "GOTV" BOT active 64
 #end
 ```
+
+Using Kubernetes Service NodePort:
+
+By default CS:GO uses port `27015`, which is exposed using NodePort at `30015`.
+
+To connect to server running in KinD:
+
+```shell
+# Node IP
+docker inspect --format='{{.NetworkSettings.IPAddress}}' operator-control-plane
+172.17.0.2
+```
+
+- Open console in CS:GO (using _tilde_ key)
+- Type (assuming IP above and default config):
+```
+password <SERVER_PASSWORD in Secret>  # Omit if using password-less server
+connect 172.17.0.2:30015
+```
+
+Check server logs:
+
+```shell
+L 01/09/2021 - 09:02:59: "USERNAME<3><STEAM_1:1:11111111><>" connected, address ""
+Client "USERNAME" connected (10.128.0.340:18320).
+Server waking up from hibernation
+```
