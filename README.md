@@ -43,6 +43,21 @@ kubectl create -f config/samples/gameserver_v1alpha1_server.yaml
 kubectl get pods
 ```
 
+## Deploying Cert Manager
+
+```shell
+# ... Create Kind Cluster (See above)
+
+# Install cert-manager
+kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.1.0/cert-manager.yaml
+kubectl get pods --namespace cert-manager
+NAME                                      READY   STATUS    RESTARTS   AGE
+cert-manager-5597cff495-d8mmx             1/1     Running   0          34s
+cert-manager-cainjector-bd5f9c764-mssm2   1/1     Running   0          34s
+cert-manager-webhook-5f57f59fbc-m8j2j     1/1     Running   0          34s
+
+```
+
 ## Testing and Connecting
 
 With `kubectl port-forward`:
