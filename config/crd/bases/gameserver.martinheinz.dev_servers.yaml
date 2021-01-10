@@ -17,19 +17,13 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - description: Status of deployment
+      jsonPath: .status.status
+      name: status
+      type: string
     - description: Status of the reconcile condition
-      jsonPath: .status.conditions[?(@.type=='Reconciled')].status
-      name: Reconciled
-      type: string
-    - description: Reason for the failure of reconcile condition
-      jsonPath: .status.conditions[?(@.type=='Reconciled')].reason
-      name: Reason
-      priority: 1
-      type: string
-    - description: Failure message from reconcile condition
-      jsonPath: .status.conditions[?(@.type=='Reconciled')].message
-      name: Message
-      priority: 1
+      jsonPath: .status.storage
+      name: Storage
       type: string
     - description: Age of the resource
       jsonPath: .metadata.creationTimestamp
@@ -148,7 +142,7 @@ spec:
                   type: object
                 type: array
                 x-kubernetes-list-type: atomic
-              resourceConstraints:
+              resources:
                 description: ResourceRequirements describes the compute resource requirements.
                 properties:
                   limits:
@@ -190,28 +184,18 @@ spec:
           status:
             description: ServerStatus defines the observed state of Server
             properties:
-              conditions:
-                items:
-                  description: StatusCondition ...
-                  properties:
-                    lastTransitionTime:
-                      format: date-time
-                      type: string
-                    lastUpdateTime:
-                      format: date-time
-                      type: string
-                    message:
-                      type: string
-                    reason:
-                      type: string
-                    status:
-                      type: string
-                    type:
-                      description: StatusConditionType ...
-                      type: string
-                  type: object
-                type: array
-                x-kubernetes-list-type: atomic
+              status:
+                description: Describes whether there are running pods for this server
+                enum:
+                - Active
+                - Inactive
+                type: string
+              storage:
+                description: Describes whether storage for server is ready
+                enum:
+                - Bound
+                - Pending
+                type: string
             type: object
         type: object
     served: true

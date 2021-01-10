@@ -50,6 +50,27 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	var childDep appsv1.Deployment
+	server.Status.Status = gameserverv1alpha1.Inactive
+	if err := r.Get(ctx, types.NamespacedName{Name: server.Name, Namespace: server.Namespace}, &childDep); err != nil && errors.IsNotFound(err) {
+		log.Info("Child Deployment not available for status update")
+	} else if *childDep.Spec.Replicas > int32(0) {
+		server.Status.Status = gameserverv1alpha1.Active
+	}
+
+	var childPvc corev1.PersistentVolumeClaim
+	server.Status.Storage = gameserverv1alpha1.Pending
+	if err := r.Get(ctx, types.NamespacedName{Name: server.Name, Namespace: server.Namespace}, &childPvc); err != nil && errors.IsNotFound(err) {
+		log.Info("Child PersistentVolumeClaim not available for status update")
+	} else if childPvc.Status.Phase == corev1.ClaimBound {
+		server.Status.Storage = gameserverv1alpha1.Bound
+	}
+
+	if err := r.Status().Update(ctx, server); err != nil {
+		log.Error(err, "unable to update Server status")
+		return ctrl.Result{}, err
+	}
+
 	gameName := server.Spec.GameName
 
 	var gameSettings GameSetting
@@ -122,8 +143,8 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 		}
 	}
 
-	if m.Spec.ResourceConstraints != nil {
-		gs.Deployment.Spec.Template.Spec.Containers[0].Resources = *m.Spec.ResourceConstraints
+	if m.Spec.ResourceRequirements != nil {
+		gs.Deployment.Spec.Template.Spec.Containers[0].Resources = *m.Spec.ResourceRequirements
 	}
 
 	ctrl.SetControllerReference(m, &gs.Deployment, r.Scheme)
@@ -165,7 +186,7 @@ func (r *ServerReconciler) persistentVolumeClaimForServer(m *gameserverv1alpha1.
 		corev1.ResourceStorage: resource.MustParse(m.Spec.Storage.Size),
 	}
 
-	ctrl.SetControllerReference(m, &gs.PersistentVolumeClaim, r.Scheme)
+	ctrl.SetControllerReference(m, &gs.PersistentVolumeClaim, r.Scheme) // TODO if PVC is to be preserved, then do not set Server as owner
 	return &gs.PersistentVolumeClaim
 }
 
@@ -240,5 +261,7 @@ func labelsForServer(name string) map[string]string {
 func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&gameserverv1alpha1.Server{}).
+		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.PersistentVolumeClaim{}).
 		Complete(r)
 }

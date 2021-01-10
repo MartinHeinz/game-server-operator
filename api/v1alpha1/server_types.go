@@ -32,7 +32,7 @@ type ServerSpec struct {
 	Storage *ServerStorage `json:"storage,omitempty"`
 
 	// +optional
-	ResourceConstraints *corev1.ResourceRequirements `json:"resourceConstraints,omitempty"`
+	ResourceRequirements *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=CSGO
@@ -51,36 +51,34 @@ type ServerStorage struct {
 	//Name string `json:"name"`
 }
 
+// +kubebuilder:validation:Enum=Bound;Pending
+type StorageStatus string
+
+const (
+	Bound   StorageStatus = "Bound"
+	Pending StorageStatus = "Pending"
+)
+
+// +kubebuilder:validation:Enum=Active;Inactive
+type Status string
+
+const (
+	Active   Status = "Active"
+	Inactive Status = "Inactive"
+)
+
 // ServerStatus defines the observed state of Server
 type ServerStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make manifests" to regenerate code after modifying this file
 
-	// +listType=atomic
-	Conditions []StatusCondition `json:"conditions,omitempty"`
+	// Describes whether there are running pods for this server
+	// +optional
+	Status Status `json:"status,omitempty"`
+	// Describes whether storage for server is ready
+	// +optional
+	Storage StorageStatus `json:"storage,omitempty"`
 }
-
-// StatusCondition ...
-// +k8s:openapi-gen=true
-type StatusCondition struct {
-	LastTransitionTime *metav1.Time           `json:"lastTransitionTime,omitempty"`
-	LastUpdateTime     metav1.Time            `json:"lastUpdateTime,omitempty"`
-	Reason             string                 `json:"reason,omitempty"`
-	Message            string                 `json:"message,omitempty"`
-	Status             corev1.ConditionStatus `json:"status,omitempty"`
-	Type               StatusConditionType    `json:"type,omitempty"`
-}
-
-// StatusConditionType ...
-type StatusConditionType string
-
-const (
-	// StatusConditionTypeReconciled ...
-	StatusConditionTypeReconciled StatusConditionType = "Reconciled"
-
-	// StatusConditionTypeDependenciesSatisfied ...
-	StatusConditionTypeDependenciesSatisfied StatusConditionType = "DependenciesSatisfied"
-)
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
@@ -89,9 +87,8 @@ const (
 // +k8s:openapi-gen=true
 // +kubebuilder:resource:path=servers,scope=Namespaced
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Reconciled",type="string",JSONPath=".status.conditions[?(@.type=='Reconciled')].status",priority=0,description="Status of the reconcile condition"
-// +kubebuilder:printcolumn:name="Reason",type="string",JSONPath=".status.conditions[?(@.type=='Reconciled')].reason",priority=1,description="Reason for the failure of reconcile condition"
-// +kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.conditions[?(@.type=='Reconciled')].message",priority=1,description="Failure message from reconcile condition"
+// +kubebuilder:printcolumn:name="status",type="string",JSONPath=".status.status",priority=0,description="Status of deployment"
+// +kubebuilder:printcolumn:name="Storage",type="string",JSONPath=".status.storage",priority=0,description="Status of the reconcile condition"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",priority=0,description="Age of the resource"
 type Server struct {
 	metav1.TypeMeta   `json:",inline"`

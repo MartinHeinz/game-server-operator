@@ -122,8 +122,8 @@ var _ = Describe("Server controller", func() {
 						},
 					},
 					},
-					Storage:             storage,
-					ResourceConstraints: resources,
+					Storage:              storage,
+					ResourceRequirements: resources,
 				},
 			}
 			Expect(k8sClient.Create(ctx, server)).Should(Succeed())
