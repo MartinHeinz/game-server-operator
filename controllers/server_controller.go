@@ -128,12 +128,15 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 	gs.Deployment.ObjectMeta = metav1.ObjectMeta{
 		Name:      m.Name,
 		Namespace: m.Namespace,
+		Labels:    ls,
 	}
 	gs.Deployment.Spec.Selector = &metav1.LabelSelector{
 		MatchLabels: ls,
 	}
 	gs.Deployment.Spec.Template.Labels = ls
 	gs.Deployment.Spec.Template.Spec.Volumes[0].VolumeSource.PersistentVolumeClaim.ClaimName = m.Name
+
+	gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom = nil
 	for i, res := range m.Spec.EnvFrom {
 		gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom = append(gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom, corev1.EnvFromSource{})
 		if res.ConfigMapRef != nil {
@@ -157,6 +160,7 @@ func (r *ServerReconciler) serviceForServer(m *gameserverv1alpha1.Server, gs *Ga
 	gs.Service.ObjectMeta = metav1.ObjectMeta{
 		Name:      m.Name,
 		Namespace: m.Namespace,
+		Labels:    ls,
 	}
 	gs.Service.Spec.Selector = ls
 
@@ -170,13 +174,8 @@ func (r *ServerReconciler) serviceForServer(m *gameserverv1alpha1.Server, gs *Ga
 
 func (r *ServerReconciler) persistentVolumeClaimForServer(m *gameserverv1alpha1.Server, gs *GameSetting) *corev1.PersistentVolumeClaim {
 	ls := labelsForServer(m.Name)
-	//name := m.Spec.ServerName
-	//if m.Spec.Storage.Name != "" {
-	//	name = m.Spec.Storage.Name
-	//}
 
 	gs.PersistentVolumeClaim.ObjectMeta = metav1.ObjectMeta{
-		//Name:      name,
 		Name:      m.Name,
 		Namespace: m.Namespace,
 		Labels:    ls,
@@ -199,8 +198,6 @@ type GameSetting struct {
 var (
 	Games = map[gameserverv1alpha1.GameName]GameSetting{
 		gameserverv1alpha1.CSGO: {Deployment: appsv1.Deployment{
-			TypeMeta:   metav1.TypeMeta{},
-			ObjectMeta: metav1.ObjectMeta{},
 			Spec: appsv1.DeploymentSpec{
 				Replicas: func(val int32) *int32 { return &val }(1),
 				Template: corev1.PodTemplateSpec{
