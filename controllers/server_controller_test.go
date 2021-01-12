@@ -24,13 +24,13 @@ var _ = Describe("Server controller", func() {
 		ServerName      = "test-server"
 		ServerNamespace = "default"
 
-		timeout  = time.Second * 15
+		timeout  = time.Second * 10
 		interval = time.Millisecond * 250
 	)
 
-	Context("When updating Server Status", func() {
+	Context("When creating Server", func() {
 		It("Should create objects with game-specific attributes", func() {
-			By("By creating a new Server")
+			By("creating a new Server")
 			ctx := context.Background()
 
 			deploymentName := ServerName + "-deployment"
@@ -189,6 +189,93 @@ var _ = Describe("Server controller", func() {
 
 			// Check whether ClaimName was correctly assigned
 			Expect(createdDeployment.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName).Should(Equal(pvcName))
+		})
+	})
+
+	Context("When updating existing Server", func() {
+		It("Should modify objects with new attributes", func() {
+			By("updating a Server")
+			ctx := context.Background()
+
+			deploymentName := ServerName + "-deployment"
+			newConfigMapName := "csgo-env-config-new"
+
+			newConfigMap := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      newConfigMapName,
+					Namespace: ServerNamespace,
+				},
+				Data: map[string]string{"SERVER_HOSTNAME": "new-hostname"},
+			}
+			Expect(k8sClient.Create(ctx, newConfigMap)).Should(Succeed())
+
+			newConfigMapLookupKey := types.NamespacedName{Name: newConfigMapName, Namespace: ServerNamespace}
+			createdNewConfigMap := &corev1.ConfigMap{}
+
+			Eventually(func() bool {
+
+				if err := k8sClient.Get(ctx, newConfigMapLookupKey, createdNewConfigMap); err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			serverLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
+			createdServer := &gameserverv1alpha1.Server{}
+
+			deploymentLookupKey := types.NamespacedName{Name: deploymentName, Namespace: ServerNamespace}
+			createdDeployment := &appsv1.Deployment{}
+
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, serverLookupKey, createdServer); err != nil {
+					return false
+				}
+				if err := k8sClient.Get(ctx, deploymentLookupKey, createdDeployment); err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			createdServer.Spec.EnvFrom = []corev1.EnvFromSource{
+				{ConfigMapRef: &corev1.ConfigMapEnvSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: newConfigMapName,
+					},
+				}}}
+
+			Expect(k8sClient.Update(ctx, createdServer)).Should(Succeed())
+
+			updatedServer := &gameserverv1alpha1.Server{}
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, serverLookupKey, updatedServer); err != nil {
+					return false
+				}
+				if updatedServer.Generation < 2 {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			// New generation created
+			Expect(updatedServer.Generation).Should(Equal(int64(2)))
+			Expect(createdServer.Spec.EnvFrom).Should(Equal(updatedServer.Spec.EnvFrom))
+
+			updatedDeployment := &appsv1.Deployment{}
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, deploymentLookupKey, updatedDeployment); err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			newCreatedContainer := updatedDeployment.Spec.Template.Spec.Containers[0]
+			Expect(newCreatedContainer.EnvFrom).Should(Equal([]corev1.EnvFromSource{
+				{ConfigMapRef: &corev1.ConfigMapEnvSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: newConfigMapName,
+					},
+				}},
+			}))
 		})
 	})
 })

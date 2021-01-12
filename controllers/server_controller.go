@@ -89,15 +89,14 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
-	// TODO Using generateName:
-	// TODO Revert back to basic lookup
-	// TODO use https://github.com/kubernetes-sigs/kubebuilder/blob/master/docs/book/src/cronjob-tutorial/testdata/project/controllers/cronjob_controller.go#L536 for finding owning server of Deploy, Svc, PVC
-	// Use stuff from `stash` branch
 	found := []client.Object{
 		&appsv1.Deployment{},
 		&corev1.Service{},
 		&corev1.PersistentVolumeClaim{},
 	}
+
+	// --------------------------
+	// Initialize
 
 	for _, f := range found {
 		t := reflect.TypeOf(f).String()
@@ -125,6 +124,46 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				return ctrl.Result{}, err
 			}
 			// Object created successfully - return and requeue
+			return ctrl.Result{Requeue: true}, nil
+		} else if err != nil {
+			log.Error(err, fmt.Sprintf("Failed to get %s", t))
+			return ctrl.Result{}, err
+		}
+	}
+	// --------------------------
+
+	currentGen := server.Generation
+	if currentGen == 1 {
+		return ctrl.Result{}, nil
+	}
+
+	// --------------------------
+	// Update
+	for _, f := range found {
+		t := reflect.TypeOf(f).String()
+		suffix := "-" + strings.ToLower(strings.Split(reflect.TypeOf(f).String(), ".")[1])
+		objectName := server.Name + suffix
+		if err := r.Get(ctx, types.NamespacedName{Name: objectName, Namespace: server.Namespace}, f); err != nil && errors.IsNotFound(err) {
+			// Define a new Object
+			obj := client.Object(nil)
+
+			switch f.(type) {
+			default:
+				log.Info("Invalid Kind")
+			case *appsv1.Deployment:
+				obj = r.updateDeploymentForServer(server, f.(*appsv1.Deployment)) // TODO Test manually
+			case *corev1.Service:
+				//obj = r.updateServiceForServer(server, &gameSettings)
+			case *corev1.PersistentVolumeClaim:
+				//obj = r.updatePersistentVolumeClaimForServer(server, &gameSettings)
+			}
+			log.Info(fmt.Sprintf("Updating a %s", t), fmt.Sprintf("%s.Namespace", t), obj.GetNamespace(), fmt.Sprintf("%s.Name", t), obj.GetName())
+			err = r.Update(ctx, obj)
+			if err != nil {
+				log.Error(err, fmt.Sprintf("Failed to update %s", t), fmt.Sprintf("%s.Namespace", t), obj.GetNamespace(), fmt.Sprintf("%s.Name", t), obj.GetName())
+				return ctrl.Result{}, err
+			}
+			// Object updated successfully - return and requeue
 			return ctrl.Result{Requeue: true}, nil
 		} else if err != nil {
 			log.Error(err, fmt.Sprintf("Failed to get %s", t))
@@ -165,6 +204,25 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 
 	ctrl.SetControllerReference(m, &gs.Deployment, r.Scheme)
 	return &gs.Deployment
+}
+
+func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Server, dep *appsv1.Deployment) *appsv1.Deployment { // TODO Test failing
+	existingConfig := dep.Spec.Template.Spec.Containers[0].EnvFrom
+
+	// If ConfigMap/Secret were changed
+	if reflect.DeepEqual(m.Spec.EnvFrom, existingConfig) {
+		existingConfig = nil
+		for i, res := range m.Spec.EnvFrom {
+			existingConfig = append(existingConfig, corev1.EnvFromSource{})
+			if res.ConfigMapRef != nil {
+				existingConfig[i].ConfigMapRef = res.ConfigMapRef
+			} else if res.SecretRef != nil {
+				existingConfig[i].SecretRef = res.SecretRef
+			}
+		}
+	}
+
+	return dep
 }
 
 func (r *ServerReconciler) serviceForServer(m *gameserverv1alpha1.Server, gs *GameSetting) *corev1.Service {
