@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -52,7 +53,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	var childDep appsv1.Deployment
 	server.Status.Status = gameserverv1alpha1.Inactive
-	if err := r.Get(ctx, types.NamespacedName{Name: server.Name, Namespace: server.Namespace}, &childDep); err != nil && errors.IsNotFound(err) {
+	if err := r.Get(ctx, types.NamespacedName{Name: server.Name + "-deployment", Namespace: server.Namespace}, &childDep); err != nil && errors.IsNotFound(err) {
 		log.Info("Child Deployment not available for status update")
 	} else if *childDep.Spec.Replicas > int32(0) {
 		server.Status.Status = gameserverv1alpha1.Active
@@ -60,7 +61,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	var childPvc corev1.PersistentVolumeClaim
 	server.Status.Storage = gameserverv1alpha1.Pending
-	if err := r.Get(ctx, types.NamespacedName{Name: server.Name, Namespace: server.Namespace}, &childPvc); err != nil && errors.IsNotFound(err) {
+	if err := r.Get(ctx, types.NamespacedName{Name: server.Name + "-persistentvolumeclaim", Namespace: server.Namespace}, &childPvc); err != nil && errors.IsNotFound(err) {
 		log.Info("Child PersistentVolumeClaim not available for status update")
 	} else if childPvc.Status.Phase == corev1.ClaimBound {
 		server.Status.Storage = gameserverv1alpha1.Bound
@@ -82,6 +83,10 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
+	// TODO Using generateName:
+	// TODO Revert back to basic lookup
+	// TODO use https://github.com/kubernetes-sigs/kubebuilder/blob/master/docs/book/src/cronjob-tutorial/testdata/project/controllers/cronjob_controller.go#L536 for finding owning server of Deploy, Svc, PVC
+	// Use stuff from `stash` branch
 	found := []client.Object{
 		&appsv1.Deployment{},
 		&corev1.Service{},
@@ -90,7 +95,9 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	for _, f := range found {
 		t := reflect.TypeOf(f).String()
-		if err := r.Get(ctx, types.NamespacedName{Name: server.Name, Namespace: server.Namespace}, f); err != nil && errors.IsNotFound(err) {
+		suffix := "-" + strings.ToLower(strings.Split(reflect.TypeOf(f).String(), ".")[1])
+		objectName := server.Name + suffix
+		if err := r.Get(ctx, types.NamespacedName{Name: objectName, Namespace: server.Namespace}, f); err != nil && errors.IsNotFound(err) {
 			// Define a new Object
 			obj := client.Object(nil)
 
@@ -98,12 +105,12 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			default:
 				log.Info("Invalid Kind")
 			case *appsv1.Deployment:
-				obj = r.deploymentForServer(server, &gameSettings) // TODO Reconciliation fails if Deployment is deleted (CM, Secret issues)
+				obj = r.deploymentForServer(server, &gameSettings, objectName)
 			case *corev1.Service:
-				obj = r.serviceForServer(server, &gameSettings)
+				obj = r.serviceForServer(server, &gameSettings, objectName)
 			case *corev1.PersistentVolumeClaim:
 				// TODO To preserve PVC after Server deletion - delete PVC OwnersReference - Use Mutating Admission Webhook - https://book.kubebuilder.io/reference/webhook-for-core-types.html
-				obj = r.persistentVolumeClaimForServer(server, &gameSettings)
+				obj = r.persistentVolumeClaimForServer(server, &gameSettings, objectName)
 			}
 			log.Info(fmt.Sprintf("Creating a new %s", t), fmt.Sprintf("%s.Namespace", t), obj.GetNamespace(), fmt.Sprintf("%s.Name", t), obj.GetName())
 			err = r.Create(ctx, obj)
@@ -122,11 +129,11 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	return ctrl.Result{}, nil
 }
 
-func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs *GameSetting) *appsv1.Deployment {
+func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs *GameSetting, name string) *appsv1.Deployment {
 	ls := labelsForServer(m.Name)
 
 	gs.Deployment.ObjectMeta = metav1.ObjectMeta{
-		Name:      m.Name,
+		Name:      name,
 		Namespace: m.Namespace,
 		Labels:    ls,
 	}
@@ -134,7 +141,7 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 		MatchLabels: ls,
 	}
 	gs.Deployment.Spec.Template.Labels = ls
-	gs.Deployment.Spec.Template.Spec.Volumes[0].VolumeSource.PersistentVolumeClaim.ClaimName = m.Name
+	gs.Deployment.Spec.Template.Spec.Volumes[0].VolumeSource.PersistentVolumeClaim.ClaimName = m.Name + "-persistentvolumeclaim"
 
 	gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom = nil
 	for i, res := range m.Spec.EnvFrom {
@@ -154,11 +161,11 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 	return &gs.Deployment
 }
 
-func (r *ServerReconciler) serviceForServer(m *gameserverv1alpha1.Server, gs *GameSetting) *corev1.Service {
+func (r *ServerReconciler) serviceForServer(m *gameserverv1alpha1.Server, gs *GameSetting, name string) *corev1.Service {
 	ls := labelsForServer(m.Name)
 
 	gs.Service.ObjectMeta = metav1.ObjectMeta{
-		Name:      m.Name,
+		Name:      name,
 		Namespace: m.Namespace,
 		Labels:    ls,
 	}
@@ -172,11 +179,11 @@ func (r *ServerReconciler) serviceForServer(m *gameserverv1alpha1.Server, gs *Ga
 	return &gs.Service
 }
 
-func (r *ServerReconciler) persistentVolumeClaimForServer(m *gameserverv1alpha1.Server, gs *GameSetting) *corev1.PersistentVolumeClaim {
+func (r *ServerReconciler) persistentVolumeClaimForServer(m *gameserverv1alpha1.Server, gs *GameSetting, name string) *corev1.PersistentVolumeClaim {
 	ls := labelsForServer(m.Name)
 
 	gs.PersistentVolumeClaim.ObjectMeta = metav1.ObjectMeta{
-		Name:      m.Name,
+		Name:      name,
 		Namespace: m.Namespace,
 		Labels:    ls,
 	}

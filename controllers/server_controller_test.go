@@ -24,7 +24,7 @@ var _ = Describe("Server controller", func() {
 		ServerName      = "test-server"
 		ServerNamespace = "default"
 
-		timeout  = time.Second * 10
+		timeout  = time.Second * 15
 		interval = time.Millisecond * 250
 	)
 
@@ -33,7 +33,9 @@ var _ = Describe("Server controller", func() {
 			By("By creating a new Server")
 			ctx := context.Background()
 
-			deploymentName := "csgo-server"
+			deploymentName := ServerName + "-deployment"
+			serviceName := ServerName + "-service"
+			pvcName := ServerName + "-persistentvolumeclaim"
 			configMapName := "csgo-env-config"
 			secretName := "csgo-secret"
 			gameName := gameserverv1alpha1.CSGO
@@ -106,7 +108,7 @@ var _ = Describe("Server controller", func() {
 					Namespace: ServerNamespace,
 				},
 				Spec: gameserverv1alpha1.ServerSpec{
-					ServerName: deploymentName,
+					ServerName: ServerName,
 					GameName:   gameserverv1alpha1.CSGO,
 					Ports: []corev1.ServicePort{
 						{Name: "27015-tcp", Port: 27015, NodePort: 30020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolTCP},
@@ -131,7 +133,7 @@ var _ = Describe("Server controller", func() {
 			serverLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
 			createdServer := &gameserverv1alpha1.Server{}
 
-			deploymentLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
+			deploymentLookupKey := types.NamespacedName{Name: deploymentName, Namespace: ServerNamespace}
 			createdDeployment := &appsv1.Deployment{}
 
 			Eventually(func() bool {
@@ -161,7 +163,7 @@ var _ = Describe("Server controller", func() {
 
 			Expect(&createdContainer.Resources).Should(Equal(resources))
 
-			serviceLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
+			serviceLookupKey := types.NamespacedName{Name: serviceName, Namespace: ServerNamespace}
 			createdService := &corev1.Service{}
 
 			Eventually(func() bool {
@@ -173,7 +175,7 @@ var _ = Describe("Server controller", func() {
 			Expect(createdService.Spec.Selector["server"]).Should(Equal(ServerName))
 			Expect(createdService.Spec.Ports).Should(Equal(server.Spec.Ports))
 
-			pvcLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
+			pvcLookupKey := types.NamespacedName{Name: pvcName, Namespace: ServerNamespace}
 			createdPvc := &corev1.PersistentVolumeClaim{}
 
 			Eventually(func() bool {
@@ -183,10 +185,10 @@ var _ = Describe("Server controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 			Expect(createdPvc.Spec.Resources.Requests.Storage().String()).Should(Equal(storage.Size))
-			Expect(createdPvc.Name).Should(Equal(ServerName))
+			Expect(createdPvc.Name).Should(Equal(pvcName))
 
 			// Check whether ClaimName was correctly assigned
-			Expect(createdDeployment.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName).Should(Equal(ServerName))
+			Expect(createdDeployment.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName).Should(Equal(pvcName))
 		})
 	})
 })
