@@ -213,6 +213,7 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 
 func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Server, dep *appsv1.Deployment) (*appsv1.Deployment, bool) {
 	existingConfig := dep.Spec.Template.Spec.Containers[0].EnvFrom
+	existingResources := dep.Spec.Template.Spec.Containers[0].Resources
 	requeue := false
 
 	// If ConfigMap/Secret were changed
@@ -228,6 +229,12 @@ func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Serve
 			}
 		}
 		dep.Spec.Template.Spec.Containers[0].EnvFrom = newConfig
+	}
+
+	// If ResourceRequirements were changed
+	if !reflect.DeepEqual(m.Spec.ResourceRequirements, existingResources) {
+		requeue = true
+		dep.Spec.Template.Spec.Containers[0].Resources = *m.Spec.ResourceRequirements
 	}
 
 	return dep, requeue

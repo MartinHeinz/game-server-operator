@@ -283,6 +283,77 @@ var _ = Describe("Server controller", func() {
 		})
 	})
 
+	Context("When updating existing Server ResourceRequirements", func() {
+		It("Should modify deployment with new attributes", func() {
+			By("updating a Server")
+			ctx := context.Background()
+
+			deploymentName := ServerName + "-deployment"
+
+			newResources := &corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("500m"),
+					corev1.ResourceMemory: resource.MustParse("128Mi"),
+				},
+				Limits: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("1"),
+					corev1.ResourceMemory: resource.MustParse("2Gi"),
+				},
+			}
+
+			serverLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
+			createdServer := &gameserverv1alpha1.Server{}
+
+			deploymentLookupKey := types.NamespacedName{Name: deploymentName, Namespace: ServerNamespace}
+			createdDeployment := &appsv1.Deployment{}
+
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, serverLookupKey, createdServer); err != nil {
+					return false
+				}
+				if err := k8sClient.Get(ctx, deploymentLookupKey, createdDeployment); err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			serverGeneration := createdServer.Generation
+			deploymentGeneration := createdDeployment.Generation
+			createdServer.Spec.ResourceRequirements = newResources
+
+			Expect(k8sClient.Update(ctx, createdServer)).Should(Succeed())
+
+			updatedServer := &gameserverv1alpha1.Server{}
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, serverLookupKey, updatedServer); err != nil {
+					return false
+				}
+				if updatedServer.Generation <= serverGeneration {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			// New generation created
+			Expect(updatedServer.Generation).Should(Equal(int64(3)))
+			Expect(createdServer.Spec.EnvFrom).Should(Equal(updatedServer.Spec.EnvFrom))
+
+			updatedDeployment := &appsv1.Deployment{}
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, deploymentLookupKey, updatedDeployment); err != nil {
+					return false
+				}
+				if updatedDeployment.Generation <= deploymentGeneration {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			newCreatedContainer := updatedDeployment.Spec.Template.Spec.Containers[0]
+			Expect(&newCreatedContainer.Resources).Should(Equal(newResources))
+		})
+	})
+
 	Context("When updating existing Server NodePort", func() {
 		It("Should modify service with new attribute", func() {
 			By("updating a Server")
@@ -325,7 +396,7 @@ var _ = Describe("Server controller", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			// New generation created
-			Expect(updatedServer.Generation).Should(Equal(int64(3)))
+			Expect(updatedServer.Generation).Should(Equal(int64(4)))
 			// New Generation of Server should have updated NodePort
 			Expect(createdServer.Spec.Ports[0].NodePort).Should(Equal(updatedServer.Spec.Ports[0].NodePort))
 
