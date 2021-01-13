@@ -139,6 +139,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	// --------------------------
 	// Update
+	requeue := false
 	for _, f := range found {
 		t := reflect.TypeOf(f).String()
 		suffix := "-" + strings.ToLower(strings.Split(reflect.TypeOf(f).String(), ".")[1])
@@ -151,24 +152,28 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			default:
 				log.Info("Invalid Kind")
 			case *appsv1.Deployment:
-				obj = r.updateDeploymentForServer(server, f.(*appsv1.Deployment))
+				obj, requeue = r.updateDeploymentForServer(server, f.(*appsv1.Deployment))
 			case *corev1.Service:
-				//obj = r.updateServiceForServer(server, &gameSettings)
+				obj, requeue = r.updateServiceForServer(server, f.(*corev1.Service))
 			case *corev1.PersistentVolumeClaim:
-				//obj = r.updatePersistentVolumeClaimForServer(server, &gameSettings)
+				continue // TODO
+				//obj, requeue = r.updatePersistentVolumeClaimForServer(server, &gameSettings)
 			}
 			log.Info(fmt.Sprintf("Updating a %s", t), fmt.Sprintf("%s.Namespace", t), obj.GetNamespace(), fmt.Sprintf("%s.Name", t), obj.GetName())
-			err = r.Update(ctx, obj)
-			if err != nil {
+
+			if err = r.Update(ctx, obj); err != nil {
 				log.Error(err, fmt.Sprintf("Failed to update %s", t), fmt.Sprintf("%s.Namespace", t), obj.GetNamespace(), fmt.Sprintf("%s.Name", t), obj.GetName())
 				return ctrl.Result{}, err
 			}
 			// Object updated successfully - return and requeue
-			return ctrl.Result{Requeue: true}, nil
 		} else if err != nil {
 			log.Error(err, fmt.Sprintf("Failed to get %s", t))
 			return ctrl.Result{}, err
 		}
+	}
+
+	if requeue {
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	return ctrl.Result{}, nil
@@ -206,11 +211,13 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 	return &gs.Deployment
 }
 
-func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Server, dep *appsv1.Deployment) *appsv1.Deployment {
+func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Server, dep *appsv1.Deployment) (*appsv1.Deployment, bool) {
 	existingConfig := dep.Spec.Template.Spec.Containers[0].EnvFrom
+	requeue := false
 
 	// If ConfigMap/Secret were changed
 	if !reflect.DeepEqual(m.Spec.EnvFrom, existingConfig) {
+		requeue = true
 		var newConfig []corev1.EnvFromSource
 		for i, res := range m.Spec.EnvFrom {
 			newConfig = append(newConfig, corev1.EnvFromSource{})
@@ -223,7 +230,7 @@ func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Serve
 		dep.Spec.Template.Spec.Containers[0].EnvFrom = newConfig
 	}
 
-	return dep
+	return dep, requeue
 }
 
 func (r *ServerReconciler) serviceForServer(m *gameserverv1alpha1.Server, gs *GameSetting) *corev1.Service {
@@ -242,6 +249,20 @@ func (r *ServerReconciler) serviceForServer(m *gameserverv1alpha1.Server, gs *Ga
 
 	ctrl.SetControllerReference(m, &gs.Service, r.Scheme)
 	return &gs.Service
+}
+
+func (r *ServerReconciler) updateServiceForServer(m *gameserverv1alpha1.Server, svc *corev1.Service) (*corev1.Service, bool) {
+	existingServicePorts := svc.Spec.Ports
+	requeue := false
+
+	for i, port := range existingServicePorts {
+		if port.NodePort != m.Spec.Ports[i].NodePort {
+			requeue = true
+			svc.Spec.Ports[i].NodePort = m.Spec.Ports[i].NodePort
+		}
+	}
+
+	return svc, requeue
 }
 
 func (r *ServerReconciler) persistentVolumeClaimForServer(m *gameserverv1alpha1.Server, gs *GameSetting) *corev1.PersistentVolumeClaim {
@@ -331,6 +352,7 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&gameserverv1alpha1.Server{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.Service{}).
 		Owns(&corev1.PersistentVolumeClaim{}).
 		Complete(r)
 }

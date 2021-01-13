@@ -192,8 +192,8 @@ var _ = Describe("Server controller", func() {
 		})
 	})
 
-	Context("When updating existing Server", func() {
-		It("Should modify objects with new attributes", func() {
+	Context("When updating existing Server config", func() {
+		It("Should modify deployment with new attributes", func() {
 			By("updating a Server")
 			ctx := context.Background()
 
@@ -236,6 +236,7 @@ var _ = Describe("Server controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
+			deploymentGeneration := createdDeployment.Generation
 			createdServer.Spec.EnvFrom = []corev1.EnvFromSource{
 				{ConfigMapRef: &corev1.ConfigMapEnvSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -265,7 +266,7 @@ var _ = Describe("Server controller", func() {
 				if err := k8sClient.Get(ctx, deploymentLookupKey, updatedDeployment); err != nil {
 					return false
 				}
-				if updatedDeployment.Generation < 2 {
+				if updatedDeployment.Generation <= deploymentGeneration {
 					return false
 				}
 				return true
@@ -279,6 +280,70 @@ var _ = Describe("Server controller", func() {
 					},
 				}},
 			}))
+		})
+	})
+
+	Context("When updating existing Server NodePort", func() {
+		It("Should modify service with new attribute", func() {
+			By("updating a Server")
+			ctx := context.Background()
+
+			serviceName := ServerName + "-service"
+			newNodePort := int32(30030)
+
+			serverLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
+			createdServer := &gameserverv1alpha1.Server{}
+
+			serviceLookupKey := types.NamespacedName{Name: serviceName, Namespace: ServerNamespace}
+			createdService := &corev1.Service{}
+
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, serverLookupKey, createdServer); err != nil {
+					return false
+				}
+				if err := k8sClient.Get(ctx, serviceLookupKey, createdService); err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+			createdServerGeneration := createdServer.Generation
+
+			// Change and update NodePort of Server
+			createdServer.Spec.Ports[0].NodePort = newNodePort
+			Expect(k8sClient.Update(ctx, createdServer)).Should(Succeed())
+
+			// Wait for Server to be updated (Generation increased)
+			updatedServer := &gameserverv1alpha1.Server{}
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, serverLookupKey, updatedServer); err != nil {
+					return false
+				}
+				if updatedServer.Generation <= createdServerGeneration {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			// New generation created
+			Expect(updatedServer.Generation).Should(Equal(int64(3)))
+			// New Generation of Server should have updated NodePort
+			Expect(createdServer.Spec.Ports[0].NodePort).Should(Equal(updatedServer.Spec.Ports[0].NodePort))
+
+			// Wait for child Service to be updated (Generation increased)
+			updatedService := &corev1.Service{}
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, serviceLookupKey, updatedService); err != nil {
+					return false
+				}
+				if updatedService.Spec.Ports[0].NodePort != newNodePort {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			// New Generation of Service should have updated NodePort
+			updatedNodePort := updatedService.Spec.Ports[0].NodePort
+			Expect(updatedNodePort).Should(Equal(newNodePort))
 		})
 	})
 })
