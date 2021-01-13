@@ -265,6 +265,9 @@ var _ = Describe("Server controller", func() {
 				if err := k8sClient.Get(ctx, deploymentLookupKey, updatedDeployment); err != nil {
 					return false
 				}
+				if updatedDeployment.Generation < 2 {
+					return false
+				}
 				return true
 			}, timeout, interval).Should(BeTrue())
 

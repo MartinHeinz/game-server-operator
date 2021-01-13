@@ -143,7 +143,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		t := reflect.TypeOf(f).String()
 		suffix := "-" + strings.ToLower(strings.Split(reflect.TypeOf(f).String(), ".")[1])
 		objectName := server.Name + suffix
-		if err := r.Get(ctx, types.NamespacedName{Name: objectName, Namespace: server.Namespace}, f); err != nil && errors.IsNotFound(err) {
+		if err := r.Get(ctx, types.NamespacedName{Name: objectName, Namespace: server.Namespace}, f); err == nil {
 			// Define a new Object
 			obj := client.Object(nil)
 
@@ -151,7 +151,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			default:
 				log.Info("Invalid Kind")
 			case *appsv1.Deployment:
-				obj = r.updateDeploymentForServer(server, f.(*appsv1.Deployment)) // TODO Test manually
+				obj = r.updateDeploymentForServer(server, f.(*appsv1.Deployment))
 			case *corev1.Service:
 				//obj = r.updateServiceForServer(server, &gameSettings)
 			case *corev1.PersistentVolumeClaim:
@@ -206,20 +206,21 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 	return &gs.Deployment
 }
 
-func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Server, dep *appsv1.Deployment) *appsv1.Deployment { // TODO Test failing
+func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Server, dep *appsv1.Deployment) *appsv1.Deployment {
 	existingConfig := dep.Spec.Template.Spec.Containers[0].EnvFrom
 
 	// If ConfigMap/Secret were changed
-	if reflect.DeepEqual(m.Spec.EnvFrom, existingConfig) {
-		existingConfig = nil
+	if !reflect.DeepEqual(m.Spec.EnvFrom, existingConfig) {
+		var newConfig []corev1.EnvFromSource
 		for i, res := range m.Spec.EnvFrom {
-			existingConfig = append(existingConfig, corev1.EnvFromSource{})
+			newConfig = append(newConfig, corev1.EnvFromSource{})
 			if res.ConfigMapRef != nil {
-				existingConfig[i].ConfigMapRef = res.ConfigMapRef
+				newConfig[i].ConfigMapRef = res.ConfigMapRef
 			} else if res.SecretRef != nil {
-				existingConfig[i].SecretRef = res.SecretRef
+				newConfig[i].SecretRef = res.SecretRef
 			}
 		}
+		dep.Spec.Template.Spec.Containers[0].EnvFrom = newConfig
 	}
 
 	return dep
