@@ -27,6 +27,7 @@ type ServerSpec struct {
 	Ports []corev1.ServicePort `json:"port,omitempty"`
 
 	// +listType=atomic
+	// +optional
 	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
 
 	Storage *ServerStorage `json:"storage,omitempty"`

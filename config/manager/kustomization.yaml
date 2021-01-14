@@ -13,4 +13,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: docker.io/martinheinz/game-server-operator
-  newTag: v0.0.12
+  newTag: v0.0.14
