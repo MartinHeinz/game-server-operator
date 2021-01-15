@@ -347,7 +347,64 @@ var (
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
 			},
-		}}
+		},
+		gameserverv1alpha1.Factorio: {Deployment: appsv1.Deployment{
+			Spec: appsv1.DeploymentSpec{
+				Replicas: func(val int32) *int32 { return &val }(1),
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{},
+					Spec: corev1.PodSpec{
+						Volumes: []corev1.Volume{{
+							Name: "factorio-data",
+							VolumeSource: corev1.VolumeSource{
+								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+									ClaimName: "", // This gets set to server name (m.Name)
+								},
+							},
+						}},
+						Containers: []corev1.Container{{
+							Name:  "factorio",
+							Image: "factoriotools/factorio:latest",
+							Ports: []corev1.ContainerPort{
+								{ContainerPort: 27015, Protocol: corev1.ProtocolTCP},
+								{ContainerPort: 34197, Protocol: corev1.ProtocolUDP},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{Name: "factorio-data", MountPath: "/factorio"},
+							},
+							ImagePullPolicy: corev1.PullIfNotPresent,
+						}},
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser:  func(val int64) *int64 { return &val }(845),
+							RunAsGroup: func(val int64) *int64 { return &val }(845),
+							FSGroup:    func(val int64) *int64 { return &val }(845),
+						},
+					},
+				},
+			},
+		},
+			Service: corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "factorio",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{Name: "27015-tcp", Port: 27015, NodePort: 30015, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolTCP},
+						{Name: "34197-udp", Port: 34197, NodePort: 34197, TargetPort: intstr.IntOrString{Type: 0, IntVal: 34197, StrVal: ""}, Protocol: corev1.ProtocolUDP},
+					},
+					Type: corev1.ServiceTypeNodePort,
+				},
+			},
+			PersistentVolumeClaim: corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "factorio",
+				},
+				Spec: corev1.PersistentVolumeClaimSpec{
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				},
+			},
+		},
+	}
 )
 
 func labelsForServer(name string) map[string]string {
