@@ -85,6 +85,8 @@ spec:
               gameName:
                 enum:
                 - CSGO
+                - Factorio
+                - Rust
                 type: string
               port:
                 items:

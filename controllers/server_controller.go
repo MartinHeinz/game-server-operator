@@ -390,7 +390,7 @@ var (
 				Spec: corev1.ServiceSpec{
 					Ports: []corev1.ServicePort{
 						{Name: "27015-tcp", Port: 27015, NodePort: 30015, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolTCP},
-						{Name: "34197-udp", Port: 34197, NodePort: 34197, TargetPort: intstr.IntOrString{Type: 0, IntVal: 34197, StrVal: ""}, Protocol: corev1.ProtocolUDP},
+						{Name: "34197-udp", Port: 34197, NodePort: 32197, TargetPort: intstr.IntOrString{Type: 0, IntVal: 34197, StrVal: ""}, Protocol: corev1.ProtocolUDP},
 					},
 					Type: corev1.ServiceTypeNodePort,
 				},
@@ -398,6 +398,63 @@ var (
 			PersistentVolumeClaim: corev1.PersistentVolumeClaim{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "factorio",
+				},
+				Spec: corev1.PersistentVolumeClaimSpec{
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				},
+			},
+		},
+		gameserverv1alpha1.Rust: {Deployment: appsv1.Deployment{
+			Spec: appsv1.DeploymentSpec{
+				Replicas: func(val int32) *int32 { return &val }(1),
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{},
+					Spec: corev1.PodSpec{
+						Volumes: []corev1.Volume{{
+							Name: "rust-data",
+							VolumeSource: corev1.VolumeSource{
+								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+									ClaimName: "", // This gets set to server name (m.Name)
+								},
+							},
+						}},
+						Containers: []corev1.Container{{
+							Name:  "rust",
+							Image: "didstopia/rust-server:latest",
+							Ports: []corev1.ContainerPort{
+								{ContainerPort: 28015, Protocol: corev1.ProtocolTCP},
+								{ContainerPort: 28015, Protocol: corev1.ProtocolUDP},
+								{ContainerPort: 28016, Protocol: corev1.ProtocolTCP},
+								{ContainerPort: 8080, Protocol: corev1.ProtocolTCP},
+								{ContainerPort: 8080, Protocol: corev1.ProtocolUDP},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{Name: "rust-data", MountPath: "/steamcmd/rust"},
+							},
+							ImagePullPolicy: corev1.PullIfNotPresent,
+						}},
+					},
+				},
+			},
+		},
+			Service: corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "rust",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{Name: "28015-tcp", Port: 28015, NodePort: 30015, TargetPort: intstr.IntOrString{Type: 0, IntVal: 28015, StrVal: ""}, Protocol: corev1.ProtocolTCP},
+						{Name: "28015-udp", Port: 28015, NodePort: 30015, TargetPort: intstr.IntOrString{Type: 0, IntVal: 28015, StrVal: ""}, Protocol: corev1.ProtocolUDP},
+						{Name: "28016-tcp", Port: 28016, NodePort: 30016, TargetPort: intstr.IntOrString{Type: 0, IntVal: 28016, StrVal: ""}, Protocol: corev1.ProtocolTCP},
+						{Name: "8080-tcp", Port: 8080, NodePort: 30080, TargetPort: intstr.IntOrString{Type: 0, IntVal: 8080, StrVal: ""}, Protocol: corev1.ProtocolTCP},
+						{Name: "8080-udp", Port: 8080, NodePort: 30080, TargetPort: intstr.IntOrString{Type: 0, IntVal: 8080, StrVal: ""}, Protocol: corev1.ProtocolUDP},
+					},
+					Type: corev1.ServiceTypeNodePort,
+				},
+			},
+			PersistentVolumeClaim: corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "rust",
 				},
 				Spec: corev1.PersistentVolumeClaimSpec{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},

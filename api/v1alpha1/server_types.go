@@ -36,12 +36,13 @@ type ServerSpec struct {
 	ResourceRequirements *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=CSGO;Factorio
+// +kubebuilder:validation:Enum=CSGO;Factorio;Rust
 type GameName string
 
 const (
 	CSGO     GameName = "CSGO"
 	Factorio GameName = "Factorio"
+	Rust     GameName = "Rust"
 )
 
 // ServerStorage ...
