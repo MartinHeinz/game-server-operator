@@ -5,7 +5,9 @@ Copyright 2021 Martin Heinz.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -26,7 +28,6 @@ func (r *Server) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 
-// TODO Change back to failurePolicy=fail and fix bug
 // +kubebuilder:webhook:path=/mutate-gameserver-martinheinz-dev-v1alpha1-server,mutating=true,failurePolicy=Ignore,sideEffects=None,groups=gameserver.martinheinz.dev,resources=servers,verbs=create;update,versions=v1alpha1,name=mserver.kb.io,admissionReviewVersions={v1,v1beta1}
 
 var _ webhook.Defaulter = &Server{}
@@ -35,18 +36,20 @@ var _ webhook.Defaulter = &Server{}
 func (r *Server) Default() {
 	serverlog.Info("default", "name", r.Name)
 
-	//if r.Spec.ResourceRequirements == nil {
-	//	r.Spec.ResourceRequirements = &corev1.ResourceRequirements{
-	//		Requests: corev1.ResourceList{
-	//			corev1.ResourceCPU:    resource.MustParse("128m"),
-	//			corev1.ResourceMemory: resource.MustParse("64Mi"),
-	//		},
-	//		Limits: corev1.ResourceList{
-	//			corev1.ResourceCPU:    resource.MustParse("1"),
-	//			corev1.ResourceMemory: resource.MustParse("1Gi"),
-	//		},
-	//	}
-	//}
+	// Note: If not assignment is made here, then "webhook returned response.patchType but not response.patch" is thrown
+	//       Therefore failurePolicy=Ignore, otherwise no resource gets admitted
+	if r.Spec.ResourceRequirements == nil {
+		r.Spec.ResourceRequirements = &corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("128m"),
+				corev1.ResourceMemory: resource.MustParse("64Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceMemory: resource.MustParse("1Gi"),
+			},
+		}
+	}
 }
 
 // +kubebuilder:webhook:path=/validate-gameserver-martinheinz-dev-v1alpha1-server,mutating=false,failurePolicy=fail,sideEffects=None,groups=gameserver.martinheinz.dev,resources=servers,verbs=create;update,versions=v1alpha1,name=vserver.kb.io,admissionReviewVersions={v1,v1beta1}
@@ -56,7 +59,7 @@ var _ webhook.Validator = &Server{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Server) ValidateCreate() error {
 	serverlog.Info("validate create", "name", r.Name)
-	// TODO Validation logic on object creation
+	// Validation logic on object creation
 	return nil
 }
 
@@ -70,15 +73,17 @@ func (r *Server) enforceImmutability(old runtime.Object) error {
 	var allErrs field.ErrorList
 	errorMessage := "Field is immutable"
 	oldServer := (old).(*Server)
+
+	portsPath := field.NewPath("spec").Child("ports")
 	if len(oldServer.Spec.Ports) != len(r.Spec.Ports) {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("ports"), errorMessage))
+		allErrs = append(allErrs, field.Forbidden(portsPath, errorMessage))
 	} else if len(r.Spec.Ports) > 0 {
 		for i, ports := range r.Spec.Ports {
 			if ports.Port != oldServer.Spec.Ports[i].Port {
-				allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("ports").Child("port"), errorMessage))
+				allErrs = append(allErrs, field.Forbidden(portsPath.Child("port"), errorMessage))
 			}
 			if ports.TargetPort != oldServer.Spec.Ports[i].TargetPort {
-				allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("ports").Child("targetPort"), errorMessage))
+				allErrs = append(allErrs, field.Forbidden(portsPath.Child("targetPort"), errorMessage))
 			}
 		}
 	}
