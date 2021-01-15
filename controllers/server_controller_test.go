@@ -58,6 +58,7 @@ var _ = Describe("Server controller", func() {
 		}
 		ctx := context.Background()
 
+		// Create ConfigMap and Secret that will be mounted into Server
 		configMap := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      ConfigMapName,
@@ -92,6 +93,7 @@ var _ = Describe("Server controller", func() {
 			return true
 		}, timeout, interval).Should(BeTrue())
 
+		// Create Server and check whether it's available
 		resources = &corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("250m"),
@@ -149,6 +151,7 @@ var _ = Describe("Server controller", func() {
 	AfterEach(func() {
 		ctx := context.Background()
 
+		// Tear down configMap, Secret and Server
 		configMapLookupKey := types.NamespacedName{Name: ConfigMapName, Namespace: ServerNamespace}
 		createdConfigMap := &corev1.ConfigMap{}
 
@@ -175,8 +178,9 @@ var _ = Describe("Server controller", func() {
 			By("creating a new Server")
 			ctx := context.Background()
 
+			// Server is create in BeforeEach
+			// Lookup child Deployment that should be now present
 			createdDeployment := &appsv1.Deployment{}
-
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, deploymentLookupKey, createdDeployment); err != nil {
 					return false
@@ -184,6 +188,7 @@ var _ = Describe("Server controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
+			// Verify that container in Deployment has values from Server spec (image, ports, envFrom, resources)
 			createdContainer := createdDeployment.Spec.Template.Spec.Containers[0]
 			Expect(createdContainer.Image).Should(Equal(gameSettings.Deployment.Spec.Template.Spec.Containers[0].Image))
 			Expect(createdContainer.Ports).Should(Equal(gameSettings.Deployment.Spec.Template.Spec.Containers[0].Ports))
@@ -198,32 +203,34 @@ var _ = Describe("Server controller", func() {
 					},
 				}},
 			}))
-
 			Expect(&createdContainer.Resources).Should(Equal(resources))
 
+			// Lookup child Service that should be now present
 			createdService := &corev1.Service{}
-
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, serviceLookupKey, createdService); err != nil {
 					return false
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
+
+			// Verify that Service has values from Server spec (selector, ports)
 			Expect(createdService.Spec.Selector["server"]).Should(Equal(ServerName))
 			Expect(createdService.Spec.Ports).Should(Equal(server.Spec.Ports))
 
+			// Lookup child PVC that should be now present
 			createdPvc := &corev1.PersistentVolumeClaim{}
-
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, pvcLookupKey, createdPvc); err != nil {
 					return false
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
+			// Verify that PVC has values from Server spec (size, name)
 			Expect(createdPvc.Spec.Resources.Requests.Storage().String()).Should(Equal(storage.Size))
 			Expect(createdPvc.Name).Should(Equal(PvcName))
 
-			// Check whether ClaimName was correctly assigned
+			// Check whether ClaimName in Deployment's container was correctly assigned
 			Expect(createdDeployment.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName).Should(Equal(PvcName))
 		})
 	})
@@ -233,8 +240,8 @@ var _ = Describe("Server controller", func() {
 			By("updating a Server")
 			ctx := context.Background()
 
+			// Create configMap that will replace Server's existing configMap during update
 			newConfigMapName := "csgo-env-config-new"
-
 			newConfigMap := &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      newConfigMapName,
@@ -254,8 +261,8 @@ var _ = Describe("Server controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
+			// Lookup child Deployment that should be now present
 			createdDeployment := &appsv1.Deployment{}
-
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, deploymentLookupKey, createdDeployment); err != nil {
 					return false
@@ -263,16 +270,19 @@ var _ = Describe("Server controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
+			// Lookup child Deployment's generation before Server update
 			deploymentGeneration := createdDeployment.Generation
+
+			// Update Server with new ConfigMap
 			createdServer.Spec.EnvFrom = []corev1.EnvFromSource{
 				{ConfigMapRef: &corev1.ConfigMapEnvSource{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: newConfigMapName,
 					},
 				}}}
-
 			Expect(k8sClient.Update(ctx, createdServer)).Should(Succeed())
 
+			// Lookup updated Server and verify that generation increased
 			updatedServer := &gameserverv1alpha1.Server{}
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, serverLookupKey, updatedServer); err != nil {
@@ -283,11 +293,10 @@ var _ = Describe("Server controller", func() {
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
-
-			// New generation created
 			Expect(updatedServer.Generation).Should(Equal(int64(2)))
 			Expect(createdServer.Spec.EnvFrom).Should(Equal(updatedServer.Spec.EnvFrom))
 
+			// Lookup child Deployment and verify that generation increased
 			updatedDeployment := &appsv1.Deployment{}
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, deploymentLookupKey, updatedDeployment); err != nil {
@@ -299,6 +308,7 @@ var _ = Describe("Server controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
+			// Verify that child Deployment's container uses new configMap
 			newCreatedContainer := updatedDeployment.Spec.Template.Spec.Containers[0]
 			Expect(newCreatedContainer.EnvFrom).Should(Equal([]corev1.EnvFromSource{
 				{ConfigMapRef: &corev1.ConfigMapEnvSource{
@@ -315,6 +325,7 @@ var _ = Describe("Server controller", func() {
 			By("updating a Server")
 			ctx := context.Background()
 
+			// Prepare new resources that will be used in Server update
 			newResources := &corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("500m"),
@@ -326,8 +337,8 @@ var _ = Describe("Server controller", func() {
 				},
 			}
 
+			// Lookup child Deployment that should be now present
 			createdDeployment := &appsv1.Deployment{}
-
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, deploymentLookupKey, createdDeployment); err != nil {
 					return false
@@ -335,12 +346,15 @@ var _ = Describe("Server controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
+			// Lookup child Deployment's and Server's generation before Server update
 			serverGeneration := createdServer.Generation
 			deploymentGeneration := createdDeployment.Generation
-			createdServer.Spec.ResourceRequirements = newResources
 
+			// Update Server's resources
+			createdServer.Spec.ResourceRequirements = newResources
 			Expect(k8sClient.Update(ctx, createdServer)).Should(Succeed())
 
+			// Lookup updated Server and verify that generation increased
 			updatedServer := &gameserverv1alpha1.Server{}
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, serverLookupKey, updatedServer); err != nil {
@@ -351,11 +365,10 @@ var _ = Describe("Server controller", func() {
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
-
-			// New generation created
 			Expect(updatedServer.Generation).Should(Equal(int64(2)))
 			Expect(createdServer.Spec.EnvFrom).Should(Equal(updatedServer.Spec.EnvFrom))
 
+			// Lookup child Deployment and verify that generation increased
 			updatedDeployment := &appsv1.Deployment{}
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, deploymentLookupKey, updatedDeployment); err != nil {
@@ -367,6 +380,7 @@ var _ = Describe("Server controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
+			// Verify that child Deployment's container uses new resource limits/requests
 			newCreatedContainer := updatedDeployment.Spec.Template.Spec.Containers[0]
 			Expect(&newCreatedContainer.Resources).Should(Equal(newResources))
 		})
@@ -377,10 +391,11 @@ var _ = Describe("Server controller", func() {
 			By("updating a Server")
 			ctx := context.Background()
 
+			// Prepare new NodePort value that will be used in Server update
 			newNodePort := int32(30030)
 
+			// Lookup child Service that should be now present and save its generation before Server update
 			createdService := &corev1.Service{}
-
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, serviceLookupKey, createdService); err != nil {
 					return false
