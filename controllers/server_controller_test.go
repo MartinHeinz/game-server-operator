@@ -37,17 +37,25 @@ var _ = Describe("Server controller", func() {
 
 	var (
 		gameSettings GameSetting
+		server       = &gameserverv1alpha1.Server{}
+		resources    = &corev1.ResourceRequirements{}
+		storage      = &gameserverv1alpha1.ServerStorage{Size: "2G"}
+
+		serverLookupKey     = types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
+		deploymentLookupKey = types.NamespacedName{Name: DeploymentName, Namespace: ServerNamespace}
+		serviceLookupKey    = types.NamespacedName{Name: ServiceName, Namespace: ServerNamespace}
+		pvcLookupKey        = types.NamespacedName{Name: PvcName, Namespace: ServerNamespace}
+
+		createdServer = &gameserverv1alpha1.Server{}
 	)
 
 	BeforeEach(func() {
-
 		for name, game := range Games {
 			if name == GameName {
 				gameSettings = game
 				break
 			}
 		}
-
 		ctx := context.Background()
 
 		configMap := &corev1.ConfigMap{
@@ -84,6 +92,58 @@ var _ = Describe("Server controller", func() {
 			return true
 		}, timeout, interval).Should(BeTrue())
 
+		resources = &corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("250m"),
+				corev1.ResourceMemory: resource.MustParse("64Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceMemory: resource.MustParse("1Gi"),
+			},
+		}
+
+		server = &gameserverv1alpha1.Server{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "servers.gameserver.martinheinz.dev/v1alpha1",
+				Kind:       "Server",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      ServerName,
+				Namespace: ServerNamespace,
+			},
+			Spec: gameserverv1alpha1.ServerSpec{
+				ServerName: ServerName,
+				GameName:   gameserverv1alpha1.CSGO,
+				Ports: []corev1.ServicePort{
+					{Name: "27015-tcp", Port: 27015, NodePort: 30020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolTCP},
+					{Name: "27015-udp", Port: 27015, NodePort: 30020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolUDP},
+				},
+				EnvFrom: []corev1.EnvFromSource{{
+					ConfigMapRef: &corev1.ConfigMapEnvSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: ConfigMapName},
+					},
+				}, {
+					SecretRef: &corev1.SecretEnvSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: SecretName},
+					},
+				},
+				},
+				Storage:              storage,
+				ResourceRequirements: resources,
+			},
+		}
+		Expect(k8sClient.Create(ctx, server)).Should(Succeed())
+
+		createdServer = &gameserverv1alpha1.Server{}
+
+		Eventually(func() bool {
+			if err := k8sClient.Get(ctx, serverLookupKey, createdServer); err != nil {
+				return false
+			}
+			return true
+		}, timeout, interval).Should(BeTrue())
+
 	})
 
 	AfterEach(func() {
@@ -105,6 +165,7 @@ var _ = Describe("Server controller", func() {
 			return true
 		}, timeout, interval).Should(BeTrue())
 
+		Expect(k8sClient.Delete(ctx, createdServer)).Should(Succeed())
 		Expect(k8sClient.Delete(ctx, createdConfigMap)).Should(Succeed())
 		Expect(k8sClient.Delete(ctx, createdSecret)).Should(Succeed())
 	})
@@ -114,60 +175,9 @@ var _ = Describe("Server controller", func() {
 			By("creating a new Server")
 			ctx := context.Background()
 
-			resources := &corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("250m"),
-					corev1.ResourceMemory: resource.MustParse("64Mi"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("2"),
-					corev1.ResourceMemory: resource.MustParse("1Gi"),
-				},
-			}
-
-			storage := &gameserverv1alpha1.ServerStorage{Size: "2G"}
-			server := &gameserverv1alpha1.Server{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "servers.gameserver.martinheinz.dev/v1alpha1",
-					Kind:       "Server",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      ServerName,
-					Namespace: ServerNamespace,
-				},
-				Spec: gameserverv1alpha1.ServerSpec{
-					ServerName: ServerName,
-					GameName:   gameserverv1alpha1.CSGO,
-					Ports: []corev1.ServicePort{
-						{Name: "27015-tcp", Port: 27015, NodePort: 30020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolTCP},
-						{Name: "27015-udp", Port: 27015, NodePort: 30020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolUDP},
-					},
-					EnvFrom: []corev1.EnvFromSource{{
-						ConfigMapRef: &corev1.ConfigMapEnvSource{
-							LocalObjectReference: corev1.LocalObjectReference{Name: ConfigMapName},
-						},
-					}, {
-						SecretRef: &corev1.SecretEnvSource{
-							LocalObjectReference: corev1.LocalObjectReference{Name: SecretName},
-						},
-					},
-					},
-					Storage:              storage,
-					ResourceRequirements: resources,
-				},
-			}
-			Expect(k8sClient.Create(ctx, server)).Should(Succeed())
-
-			serverLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
-			createdServer := &gameserverv1alpha1.Server{}
-
-			deploymentLookupKey := types.NamespacedName{Name: DeploymentName, Namespace: ServerNamespace}
 			createdDeployment := &appsv1.Deployment{}
 
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, serverLookupKey, createdServer); err != nil {
-					return false
-				}
 				if err := k8sClient.Get(ctx, deploymentLookupKey, createdDeployment); err != nil {
 					return false
 				}
@@ -191,7 +201,6 @@ var _ = Describe("Server controller", func() {
 
 			Expect(&createdContainer.Resources).Should(Equal(resources))
 
-			serviceLookupKey := types.NamespacedName{Name: ServiceName, Namespace: ServerNamespace}
 			createdService := &corev1.Service{}
 
 			Eventually(func() bool {
@@ -203,7 +212,6 @@ var _ = Describe("Server controller", func() {
 			Expect(createdService.Spec.Selector["server"]).Should(Equal(ServerName))
 			Expect(createdService.Spec.Ports).Should(Equal(server.Spec.Ports))
 
-			pvcLookupKey := types.NamespacedName{Name: PvcName, Namespace: ServerNamespace}
 			createdPvc := &corev1.PersistentVolumeClaim{}
 
 			Eventually(func() bool {
@@ -240,23 +248,15 @@ var _ = Describe("Server controller", func() {
 			createdNewConfigMap := &corev1.ConfigMap{}
 
 			Eventually(func() bool {
-
 				if err := k8sClient.Get(ctx, newConfigMapLookupKey, createdNewConfigMap); err != nil {
 					return false
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
 
-			serverLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
-			createdServer := &gameserverv1alpha1.Server{}
-
-			deploymentLookupKey := types.NamespacedName{Name: DeploymentName, Namespace: ServerNamespace}
 			createdDeployment := &appsv1.Deployment{}
 
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, serverLookupKey, createdServer); err != nil {
-					return false
-				}
 				if err := k8sClient.Get(ctx, deploymentLookupKey, createdDeployment); err != nil {
 					return false
 				}
@@ -326,16 +326,9 @@ var _ = Describe("Server controller", func() {
 				},
 			}
 
-			serverLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
-			createdServer := &gameserverv1alpha1.Server{}
-
-			deploymentLookupKey := types.NamespacedName{Name: DeploymentName, Namespace: ServerNamespace}
 			createdDeployment := &appsv1.Deployment{}
 
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, serverLookupKey, createdServer); err != nil {
-					return false
-				}
 				if err := k8sClient.Get(ctx, deploymentLookupKey, createdDeployment); err != nil {
 					return false
 				}
@@ -360,7 +353,7 @@ var _ = Describe("Server controller", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			// New generation created
-			Expect(updatedServer.Generation).Should(Equal(int64(3)))
+			Expect(updatedServer.Generation).Should(Equal(int64(2)))
 			Expect(createdServer.Spec.EnvFrom).Should(Equal(updatedServer.Spec.EnvFrom))
 
 			updatedDeployment := &appsv1.Deployment{}
@@ -386,16 +379,9 @@ var _ = Describe("Server controller", func() {
 
 			newNodePort := int32(30030)
 
-			serverLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
-			createdServer := &gameserverv1alpha1.Server{}
-
-			serviceLookupKey := types.NamespacedName{Name: ServiceName, Namespace: ServerNamespace}
 			createdService := &corev1.Service{}
 
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, serverLookupKey, createdServer); err != nil {
-					return false
-				}
 				if err := k8sClient.Get(ctx, serviceLookupKey, createdService); err != nil {
 					return false
 				}
@@ -420,7 +406,8 @@ var _ = Describe("Server controller", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			// New generation created
-			Expect(updatedServer.Generation).Should(Equal(int64(4)))
+			Expect(updatedServer.Generation).Should(Equal(int64(2)))
+
 			// New Generation of Server should have updated NodePort
 			Expect(createdServer.Spec.Ports[0].NodePort).Should(Equal(updatedServer.Spec.Ports[0].NodePort))
 
