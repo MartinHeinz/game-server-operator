@@ -26,3 +26,49 @@ spec:
     limits:
       memory: "1Gi"
       cpu: "2"
+---
+apiVersion: gameserver.martinheinz.dev/v1alpha1
+kind: Server
+metadata:
+  name: factorio
+  namespace: default
+spec:
+  serverName: factorio
+  gameName: Factorio
+  envFrom:
+    - configMapRef:
+        name: factorio
+    - secretRef:
+        name: factorio
+  resources:
+    limits:
+      cpu: "2"
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 64Mi
+  storage:
+    size: 12Gi
+---
+apiVersion: gameserver.martinheinz.dev/v1alpha1
+kind: Server
+metadata:
+  name: rust
+  namespace: default
+spec:
+  serverName: rust
+  gameName: Rust
+  envFrom:
+    - configMapRef:
+        name: rust
+    - secretRef:
+        name: rust
+  resources:
+    limits:
+      cpu: "2"
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 64Mi
+  storage:
+    size: 12Gi

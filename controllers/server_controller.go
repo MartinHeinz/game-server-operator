@@ -444,10 +444,10 @@ var (
 				Spec: corev1.ServiceSpec{
 					Ports: []corev1.ServicePort{
 						{Name: "28015-tcp", Port: 28015, NodePort: 30015, TargetPort: intstr.IntOrString{Type: 0, IntVal: 28015, StrVal: ""}, Protocol: corev1.ProtocolTCP},
-						{Name: "28015-udp", Port: 28015, NodePort: 30015, TargetPort: intstr.IntOrString{Type: 0, IntVal: 28015, StrVal: ""}, Protocol: corev1.ProtocolUDP},
+						{Name: "28015-udp", Port: 28015, NodePort: 30115, TargetPort: intstr.IntOrString{Type: 0, IntVal: 28015, StrVal: ""}, Protocol: corev1.ProtocolUDP},
 						{Name: "28016-tcp", Port: 28016, NodePort: 30016, TargetPort: intstr.IntOrString{Type: 0, IntVal: 28016, StrVal: ""}, Protocol: corev1.ProtocolTCP},
 						{Name: "8080-tcp", Port: 8080, NodePort: 30080, TargetPort: intstr.IntOrString{Type: 0, IntVal: 8080, StrVal: ""}, Protocol: corev1.ProtocolTCP},
-						{Name: "8080-udp", Port: 8080, NodePort: 30080, TargetPort: intstr.IntOrString{Type: 0, IntVal: 8080, StrVal: ""}, Protocol: corev1.ProtocolUDP},
+						{Name: "8080-udp", Port: 8080, NodePort: 30180, TargetPort: intstr.IntOrString{Type: 0, IntVal: 8080, StrVal: ""}, Protocol: corev1.ProtocolUDP},
 					},
 					Type: corev1.ServiceTypeNodePort,
 				},
