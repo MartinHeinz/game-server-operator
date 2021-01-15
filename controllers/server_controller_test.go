@@ -24,48 +24,95 @@ var _ = Describe("Server controller", func() {
 		ServerName      = "test-server"
 		ServerNamespace = "default"
 
+		DeploymentName = ServerName + "-deployment"
+		ServiceName    = ServerName + "-service"
+		PvcName        = ServerName + "-persistentvolumeclaim"
+		ConfigMapName  = "csgo-env-config"
+		SecretName     = "csgo-secret"
+		GameName       = gameserverv1alpha1.CSGO
+
 		timeout  = time.Second * 10
 		interval = time.Millisecond * 250
 	)
+
+	var (
+		gameSettings GameSetting
+	)
+
+	BeforeEach(func() {
+
+		for name, game := range Games {
+			if name == GameName {
+				gameSettings = game
+				break
+			}
+		}
+
+		ctx := context.Background()
+
+		configMap := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      ConfigMapName,
+				Namespace: ServerNamespace,
+			},
+			Data: map[string]string{"SERVER_HOSTNAME": "hostname"},
+		}
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      SecretName,
+				Namespace: ServerNamespace,
+			},
+			StringData: map[string]string{"SERVER_PASSWORD": "password"},
+		}
+
+		Expect(k8sClient.Create(ctx, configMap)).Should(Succeed())
+		Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+
+		configMapLookupKey := types.NamespacedName{Name: ConfigMapName, Namespace: ServerNamespace}
+		createdConfigMap := &corev1.ConfigMap{}
+
+		secretLookupKey := types.NamespacedName{Name: SecretName, Namespace: ServerNamespace}
+		createdSecret := &corev1.Secret{}
+
+		Eventually(func() bool {
+			if err := k8sClient.Get(ctx, configMapLookupKey, createdConfigMap); err != nil {
+				return false
+			}
+			if err := k8sClient.Get(ctx, secretLookupKey, createdSecret); err != nil {
+				return false
+			}
+			return true
+		}, timeout, interval).Should(BeTrue())
+
+	})
+
+	AfterEach(func() {
+		ctx := context.Background()
+
+		configMapLookupKey := types.NamespacedName{Name: ConfigMapName, Namespace: ServerNamespace}
+		createdConfigMap := &corev1.ConfigMap{}
+
+		secretLookupKey := types.NamespacedName{Name: SecretName, Namespace: ServerNamespace}
+		createdSecret := &corev1.Secret{}
+
+		Eventually(func() bool {
+			if err := k8sClient.Get(ctx, configMapLookupKey, createdConfigMap); err != nil {
+				return false
+			}
+			if err := k8sClient.Get(ctx, secretLookupKey, createdSecret); err != nil {
+				return false
+			}
+			return true
+		}, timeout, interval).Should(BeTrue())
+
+		Expect(k8sClient.Delete(ctx, createdConfigMap)).Should(Succeed())
+		Expect(k8sClient.Delete(ctx, createdSecret)).Should(Succeed())
+	})
 
 	Context("When creating Server", func() {
 		It("Should create objects with game-specific attributes", func() {
 			By("creating a new Server")
 			ctx := context.Background()
-
-			deploymentName := ServerName + "-deployment"
-			serviceName := ServerName + "-service"
-			pvcName := ServerName + "-persistentvolumeclaim"
-			configMapName := "csgo-env-config"
-			secretName := "csgo-secret"
-			gameName := gameserverv1alpha1.CSGO
-
-			var gameSettings GameSetting
-
-			for name, game := range Games {
-				if name == gameName {
-					gameSettings = game
-					break
-				}
-			}
-
-			configMap := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      configMapName,
-					Namespace: ServerNamespace,
-				},
-				Data: map[string]string{"SERVER_HOSTNAME": "hostname"},
-			}
-
-			Expect(k8sClient.Create(ctx, configMap)).Should(Succeed())
-
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      secretName,
-					Namespace: ServerNamespace,
-				},
-				StringData: map[string]string{"SERVER_PASSWORD": "password"},
-			}
 
 			resources := &corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
@@ -77,25 +124,6 @@ var _ = Describe("Server controller", func() {
 					corev1.ResourceMemory: resource.MustParse("1Gi"),
 				},
 			}
-
-			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-
-			configMapLookupKey := types.NamespacedName{Name: configMapName, Namespace: ServerNamespace}
-			createdConfigMap := &corev1.ConfigMap{}
-
-			secretLookupKey := types.NamespacedName{Name: secretName, Namespace: ServerNamespace}
-			createdSecret := &corev1.Secret{}
-
-			Eventually(func() bool {
-
-				if err := k8sClient.Get(ctx, configMapLookupKey, createdConfigMap); err != nil {
-					return false
-				}
-				if err := k8sClient.Get(ctx, secretLookupKey, createdSecret); err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
 
 			storage := &gameserverv1alpha1.ServerStorage{Size: "2G"}
 			server := &gameserverv1alpha1.Server{
@@ -116,11 +144,11 @@ var _ = Describe("Server controller", func() {
 					},
 					EnvFrom: []corev1.EnvFromSource{{
 						ConfigMapRef: &corev1.ConfigMapEnvSource{
-							LocalObjectReference: corev1.LocalObjectReference{Name: configMapName},
+							LocalObjectReference: corev1.LocalObjectReference{Name: ConfigMapName},
 						},
 					}, {
 						SecretRef: &corev1.SecretEnvSource{
-							LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
+							LocalObjectReference: corev1.LocalObjectReference{Name: SecretName},
 						},
 					},
 					},
@@ -133,7 +161,7 @@ var _ = Describe("Server controller", func() {
 			serverLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
 			createdServer := &gameserverv1alpha1.Server{}
 
-			deploymentLookupKey := types.NamespacedName{Name: deploymentName, Namespace: ServerNamespace}
+			deploymentLookupKey := types.NamespacedName{Name: DeploymentName, Namespace: ServerNamespace}
 			createdDeployment := &appsv1.Deployment{}
 
 			Eventually(func() bool {
@@ -152,18 +180,18 @@ var _ = Describe("Server controller", func() {
 			Expect(createdContainer.EnvFrom).Should(Equal([]corev1.EnvFromSource{
 				{ConfigMapRef: &corev1.ConfigMapEnvSource{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: configMapName,
+						Name: ConfigMapName,
 					},
 				}}, {SecretRef: &corev1.SecretEnvSource{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: secretName,
+						Name: SecretName,
 					},
 				}},
 			}))
 
 			Expect(&createdContainer.Resources).Should(Equal(resources))
 
-			serviceLookupKey := types.NamespacedName{Name: serviceName, Namespace: ServerNamespace}
+			serviceLookupKey := types.NamespacedName{Name: ServiceName, Namespace: ServerNamespace}
 			createdService := &corev1.Service{}
 
 			Eventually(func() bool {
@@ -175,7 +203,7 @@ var _ = Describe("Server controller", func() {
 			Expect(createdService.Spec.Selector["server"]).Should(Equal(ServerName))
 			Expect(createdService.Spec.Ports).Should(Equal(server.Spec.Ports))
 
-			pvcLookupKey := types.NamespacedName{Name: pvcName, Namespace: ServerNamespace}
+			pvcLookupKey := types.NamespacedName{Name: PvcName, Namespace: ServerNamespace}
 			createdPvc := &corev1.PersistentVolumeClaim{}
 
 			Eventually(func() bool {
@@ -185,10 +213,10 @@ var _ = Describe("Server controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 			Expect(createdPvc.Spec.Resources.Requests.Storage().String()).Should(Equal(storage.Size))
-			Expect(createdPvc.Name).Should(Equal(pvcName))
+			Expect(createdPvc.Name).Should(Equal(PvcName))
 
 			// Check whether ClaimName was correctly assigned
-			Expect(createdDeployment.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName).Should(Equal(pvcName))
+			Expect(createdDeployment.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName).Should(Equal(PvcName))
 		})
 	})
 
@@ -197,7 +225,6 @@ var _ = Describe("Server controller", func() {
 			By("updating a Server")
 			ctx := context.Background()
 
-			deploymentName := ServerName + "-deployment"
 			newConfigMapName := "csgo-env-config-new"
 
 			newConfigMap := &corev1.ConfigMap{
@@ -223,7 +250,7 @@ var _ = Describe("Server controller", func() {
 			serverLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
 			createdServer := &gameserverv1alpha1.Server{}
 
-			deploymentLookupKey := types.NamespacedName{Name: deploymentName, Namespace: ServerNamespace}
+			deploymentLookupKey := types.NamespacedName{Name: DeploymentName, Namespace: ServerNamespace}
 			createdDeployment := &appsv1.Deployment{}
 
 			Eventually(func() bool {
@@ -288,8 +315,6 @@ var _ = Describe("Server controller", func() {
 			By("updating a Server")
 			ctx := context.Background()
 
-			deploymentName := ServerName + "-deployment"
-
 			newResources := &corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("500m"),
@@ -304,7 +329,7 @@ var _ = Describe("Server controller", func() {
 			serverLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
 			createdServer := &gameserverv1alpha1.Server{}
 
-			deploymentLookupKey := types.NamespacedName{Name: deploymentName, Namespace: ServerNamespace}
+			deploymentLookupKey := types.NamespacedName{Name: DeploymentName, Namespace: ServerNamespace}
 			createdDeployment := &appsv1.Deployment{}
 
 			Eventually(func() bool {
@@ -359,13 +384,12 @@ var _ = Describe("Server controller", func() {
 			By("updating a Server")
 			ctx := context.Background()
 
-			serviceName := ServerName + "-service"
 			newNodePort := int32(30030)
 
 			serverLookupKey := types.NamespacedName{Name: ServerName, Namespace: ServerNamespace}
 			createdServer := &gameserverv1alpha1.Server{}
 
-			serviceLookupKey := types.NamespacedName{Name: serviceName, Namespace: ServerNamespace}
+			serviceLookupKey := types.NamespacedName{Name: ServiceName, Namespace: ServerNamespace}
 			createdService := &corev1.Service{}
 
 			Eventually(func() bool {
