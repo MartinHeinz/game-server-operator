@@ -87,6 +87,7 @@ spec:
                 - CSGO
                 - Factorio
                 - Rust
+                - Minecraft
                 type: string
               port:
                 items:

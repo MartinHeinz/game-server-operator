@@ -461,6 +461,57 @@ var (
 				},
 			},
 		},
+		gameserverv1alpha1.Minecraft: {Deployment: appsv1.Deployment{
+			Spec: appsv1.DeploymentSpec{
+				Replicas: func(val int32) *int32 { return &val }(1),
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{},
+					Spec: corev1.PodSpec{
+						Volumes: []corev1.Volume{{
+							Name: "minecraft-data",
+							VolumeSource: corev1.VolumeSource{
+								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+									ClaimName: "", // This gets set to server name (m.Name)
+								},
+							},
+						}},
+						Containers: []corev1.Container{{
+							Name:  "minecraft",
+							Image: "itzg/minecraft-server:latest",
+							Ports: []corev1.ContainerPort{
+								{ContainerPort: 25565, Protocol: corev1.ProtocolTCP},
+								{ContainerPort: 2375, Protocol: corev1.ProtocolTCP},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{Name: "minecraft-data", MountPath: "/data"},
+							},
+							ImagePullPolicy: corev1.PullIfNotPresent,
+						}},
+					},
+				},
+			},
+		},
+			Service: corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "minecraft",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{Name: "25565-tcp", Port: 25565, NodePort: 30565, TargetPort: intstr.IntOrString{Type: 0, IntVal: 25565, StrVal: ""}, Protocol: corev1.ProtocolTCP},
+						{Name: "2375-tcp", Port: 2375, NodePort: 30375, TargetPort: intstr.IntOrString{Type: 0, IntVal: 2375, StrVal: ""}, Protocol: corev1.ProtocolTCP},
+					},
+					Type: corev1.ServiceTypeNodePort,
+				},
+			},
+			PersistentVolumeClaim: corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "minecraft",
+				},
+				Spec: corev1.PersistentVolumeClaimSpec{
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				},
+			},
+		},
 	}
 )
 

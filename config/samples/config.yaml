@@ -58,3 +58,25 @@ data:
   RUST_SERVER_DESCRIPTION: "Test Rust server using Kubernetes game-server-operator"
   RUST_SERVER_SEED: "98765"
   RUST_SERVER_STARTUP_ARGUMENTS: "-batchmode -load -logfile /dev/stdout +server.secure 1"
+  RUST_SERVER_WORLDSIZE: "500"  # To make start-up faster during testing
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minecraft
+  namespace: default
+data:
+  RCON_PASSWORD: UkNPTl9QQVNTV09SRA==
+type: Opaque
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minecraft
+  namespace: default
+data:
+  EULA: "TRUE"
+  ENABLE_RCON: "true"
+  RCON_PORT: 28016
+  SERVER_NAME: "KubernetesOperatorMinecraft"
+  # OVERRIDE_SERVER_PROPERTIES: "true"
