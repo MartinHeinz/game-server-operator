@@ -73,6 +73,16 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		server.Status.Storage = gameserverv1alpha1.Bound
 	}
 
+	var childService corev1.Service
+	server.Status.Ports = []int32{}
+	if err := r.Get(ctx, types.NamespacedName{Name: server.Name + svcSuffix, Namespace: server.Namespace}, &childService); err != nil && errors.IsNotFound(err) {
+		log.Info("Child Service not available for status update")
+	} else {
+		for _, port := range childService.Spec.Ports {
+			server.Status.Ports = append(server.Status.Ports, port.NodePort)
+		}
+	}
+
 	if err := r.Status().Update(ctx, server); err != nil {
 		log.Error(err, "unable to update Server status")
 		return ctrl.Result{}, err

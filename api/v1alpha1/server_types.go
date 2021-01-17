@@ -82,6 +82,9 @@ type ServerStatus struct {
 	// Describes whether storage for server is ready
 	// +optional
 	Storage StorageStatus `json:"storage,omitempty"`
+	// List of available server NodePorts
+	// +optional
+	Ports []int32 `json:"ports,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -94,6 +97,7 @@ type ServerStatus struct {
 // +kubebuilder:printcolumn:name="status",type="string",JSONPath=".status.status",priority=0,description="Status of deployment"
 // +kubebuilder:printcolumn:name="Storage",type="string",JSONPath=".status.storage",priority=0,description="Status of the reconcile condition"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",priority=0,description="Age of the resource"
+// +kubebuilder:printcolumn:name="Ports",type="string",JSONPath=".status.ports",priority=10,description="List of available server NodePorts"
 type Server struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

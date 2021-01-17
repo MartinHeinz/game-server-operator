@@ -29,6 +29,11 @@ spec:
       jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
+    - description: List of available server NodePorts
+      jsonPath: .status.ports
+      name: Ports
+      priority: 10
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -187,6 +192,12 @@ spec:
           status:
             description: ServerStatus defines the observed state of Server
             properties:
+              ports:
+                description: List of available server NodePorts
+                items:
+                  format: int32
+                  type: integer
+                type: array
               status:
                 description: Describes whether there are running pods for this server
                 enum:

@@ -306,6 +306,8 @@ To see what environment variables can be used in configMap and Secret for each g
 
 ## Contributing
 
-Adding more games:
+If you'd like to use this operator to deploy some other game server, then you can open an issue or contribute it yourself. That would include:
 
-TODO
+- Providing a Docker image for the game server
+- Adding template (e.g. _Deployment_, _Service_ and _PVC_) for game in [server_controller.go](controllers/server_controller.go) (see `Games = map[gameserverv1alpha1.GameName]GameSetting{...}` near the end of file)
+- Adding game name to list of possible server name values in [server_types.go](api/v1alpha1/server_types.go) (see `type GameName string`)
