@@ -184,6 +184,75 @@ By default ports are set to:
 - `30016` - RCON access
 - `30080` - RCON browser access
 
+## Factorio
+
+Create server (modify file to override defaults):
+```shell
+~ $ kubectl apply -f config/sample/factorio.yaml
+```
+
+Verify that the server is running:
+```shell
+~ $ kubectl get server factorio
+NAME       STATUS   STORAGE   AGE
+factorio   Active   Bound     80s
+```
+
+Testing RCON connection with Python:
+
+```python
+#  pip install factorio-rcon-py
+import factorio_rcon
+
+client = factorio_rcon.RCONClient("172.17.0.2", 30015, "<PASSWORD>")
+response = client.send_command("/help")
+```
+
+The above snippet should exit with `code 0` and in logs you should see something like:
+
+```
+543.988 Info RemoteCommandProcessor.cpp:242: New RCON connection from IP ADDR:({...:54278})
+```
+
+By default ports are set to: 
+- `32197` - user access
+- `30015` - RCON access
+
+## Minecraft
+
+Create server (modify file to override defaults):
+```shell
+~ $ kubectl apply -f config/sample/minecraft.yaml
+```
+
+Verify that the server is running:
+```shell
+~ $ kubectl get server minecraft 
+NAME        STATUS   STORAGE   AGE
+minecraft   Active   Bound     10m
+```
+
+Test RCON:
+```shell
+~ $ kubectl exec --stdin --tty deploy/minecraft-deployment -- /bin/bash
+bash-4.4# rcon-cli
+> /list
+There are 0 of a max of 20 players online:
+...
+CTRL+D
+```
+
+Logs should show something like:
+
+```
+[16:47:28] [RCON Listener #1/INFO]: Thread RCON Client /0:0:0:0:0:0:0:1 started
+[16:48:06] [RCON Client /0:0:0:0:0:0:0:1 #3/INFO]: Thread RCON Client /0:0:0:0:0:0:0:1 shutting down
+```
+
+By default ports are set to: 
+- `30565` - user access
+- `30575` - RCON access
+
 ## Changing Default Server Configuration
 
 | Parameter                 | Description                                                                                          |
@@ -228,3 +297,15 @@ spec:
       memory: "1Gi"
       cpu: "2"
 ```
+
+To see what environment variables can be used in configMap and Secret for each game see:
+
+- [Rust configuration options](https://github.com/Didstopia/rust-server#how-to-run-the-server)
+- [CS:GO configuration options](https://github.com/kaimallea/csgo#environment-variable-overrides)
+- [Minecraft configuration options](https://github.com/itzg/docker-minecraft-server/blob/master/README.md)
+
+## Contributing
+
+Adding more games:
+
+TODO

@@ -498,7 +498,7 @@ var (
 				Spec: corev1.ServiceSpec{
 					Ports: []corev1.ServicePort{
 						{Name: "25565-tcp", Port: 25565, NodePort: 30565, TargetPort: intstr.IntOrString{Type: 0, IntVal: 25565, StrVal: ""}, Protocol: corev1.ProtocolTCP},
-						{Name: "2375-tcp", Port: 2375, NodePort: 30375, TargetPort: intstr.IntOrString{Type: 0, IntVal: 2375, StrVal: ""}, Protocol: corev1.ProtocolTCP},
+						{Name: "25575-tcp", Port: 25575, NodePort: 30575, TargetPort: intstr.IntOrString{Type: 0, IntVal: 25575, StrVal: ""}, Protocol: corev1.ProtocolTCP},
 					},
 					Type: corev1.ServiceTypeNodePort,
 				},
