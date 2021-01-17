@@ -156,6 +156,11 @@ Verify that the server is running:
 NAME   STATUS   STORAGE   AGE
 rust   Active   Bound     39h
 
+~ $ kubectl logs deploy/rust-deployment
+...
+WebSocket RCon Started on 30016
+...
+
 ~ $ kubectl exec deploy/rust-deployment -- rcon status
 RconApp::Relaying RCON command: status
 RconApp::Received message: hostname: My Awesome Server
@@ -178,3 +183,48 @@ By default ports are set to:
 - `30015` - user access
 - `30016` - RCON access
 - `30080` - RCON browser access
+
+## Changing Default Server Configuration
+
+| Parameter                 | Description                                                                                          |
+|---------------------------|------------------------------------------------------------------------------------------------------|
+| gameName                  | Name of the game. One of the `CSGO`, `Rust`, `Factorio`, `Minecraft`                                 |
+| envFrom.configMapRef.name | Name of configMap used for configuration                                                             |
+| envFrom.secretRef.name    | Name of Secret used for configuration of sensitive information                                       |
+| port.targetPort           | Port that container is listening on (Optional)                                                       |
+| port.port                 | Port exposed by generated Service (Optional)                                                         |
+| port.nodePort             | Port that will be publicly exposed on cluster node (Optional)                                        |
+| storage.size              | Size of PVC, e.g. `12Gi`                                                                             |
+| resources.requests        | Minimum resources allocated for server container (Optional, Defaults to `memory: 64Mi`, `cpu: 128m`) |
+| resources.limits          | Minimum resources available for server container (Optional, Defaults to `memory: 1`, `cpu: 1Gi`)     |
+
+
+Complete configuration example:
+
+```yaml
+apiVersion: gameserver.martinheinz.dev/v1alpha1
+kind: Server
+metadata:
+  name: csgo
+spec:
+  serverName: csgo
+  gameName: "CSGO"
+  port:  # These ports are defaults, can be omitted
+    - port: 27015
+      targetPort: 27015
+      nodePort: 30015
+  envFrom:
+    - configMapRef:
+        name: csgo
+    - secretRef:
+        name: csgo
+  storage:
+    size: 12Gi
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "2"
+```
