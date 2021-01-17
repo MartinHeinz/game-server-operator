@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: factorio
+  namespace: default
+data:
+  rconpw: cmNvbnB3  # Project this into /factorio/config/rconpw
+  server-settings.json: InZpc2liaWxpdHkiOgogIHsKICAgICJwdWJsaWMiOiBmYWxzZSwKICAgICJsYW4iOiB0cnVlCiAgfSwK  # Project this into /factorio/config/server-settings.json
+type: Opaque
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: factorio
+  namespace: default
+data:
+  LOAD_LATEST_SAVE: "false"
+  GENERATE_NEW_SAVE: "true"
+  SAVE_NAME: "factorio_save"
+---
+apiVersion: gameserver.martinheinz.dev/v1alpha1
+kind: Server
+metadata:
+  name: factorio
+  namespace: default
+spec:
+  serverName: factorio
+  gameName: Factorio
+  envFrom:
+    - configMapRef:
+        name: factorio
+    - secretRef:
+        name: factorio
+  resources:
+    limits:
+      cpu: "2"
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 64Mi
+  storage:
+    size: 12Gi

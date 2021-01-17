@@ -1,52 +1,46 @@
+# Game Server Operator
+
+This is repository for Kubernetes game-server-operator. This operator allows you to deploy popular game servers with single YAML (CRD).
+
+Currently supported game servers are: CS:GO, Rust, Minecraft and Factorio. Any containerized game server can be easily added.
+
+The most minimalistic server configuration can be as simple as:
+
+```yaml
+apiVersion: gameserver.martinheinz.dev/v1alpha1
+kind: Server
+metadata:
+  name: csgo
+spec:
+  serverName: csgo
+  gameName: "CSGO"
+  envFrom:
+    - configMapRef:
+        name: csgo
+    - secretRef:
+        name: csgo
+  storage:
+    size: 12Gi
+```
+
+For sample configurations for each game see [samples directory](./config/samples)
+
+For details on how to setup and connect to each game server see [Games section below](#games)
+
 ## Initial Setup
 
 ```shell
 operator-sdk init --domain martinheinz.dev --repo=github.com/MartinHeinz/game-server-operator --owner="Martin Heinz" --license=none
 operator-sdk create api --group gameserver --version v1alpha1 --kind Server
+operator-sdk create webhook --group gameserver --version v1alpha1 --kind Server --defaulting --programmatic-validation
 ```
 
-# Development Environment
+# Deployment (on KinD)
 
 ```shell
 kind delete cluster --name operator
 kind create cluster --name operator --config config/kind/kind-config.yaml --image=kindest/node:v1.20.0
 kind --name operator export kubeconfig
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/kind/deploy.yaml
-kubectl wait --namespace ingress-nginx \
-  --for=condition=ready pod \
-  --selector=app.kubernetes.io/component=controller \
-  --timeout=90s
-
-make deploy IMG=$IMAGE
-kubectl get crd
-NAME                                  CREATED AT
-servers.gameserver.martinheinz.dev    2021-01-06T13:03:10Z
-
-kubectl apply -f config/samples/config.yaml
-kubectl get pods -n game-server-operator-system
-NAME                                                       READY   STATUS             RESTARTS   AGE
-game-server-operator-controller-manager-6c7758447b-qnlhq   2/2     Running            0          8s
-```
-
-## Deployment
-
-```shell
-export USERNAME=martinheinz
-export IMAGE=docker.io/$USERNAME/game-server-operator:v0.0.1
-
-docker build -t $IMAGE .
-docker push $IMAGE # kind load docker-image $IMAGE
-make deploy IMG=$IMAGE
-
-kubectl apply -f config/samples/config.yaml
-kubectl create -f config/samples/gameserver_v1alpha1_server.yaml
-kubectl get pods
-```
-
-## Deploying Cert Manager
-
-```shell
-# ... Create Kind Cluster (See above)
 
 # Install cert-manager
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.1.0/cert-manager.yaml
@@ -56,24 +50,61 @@ cert-manager-5597cff495-d8mmx             1/1     Running   0          34s
 cert-manager-cainjector-bd5f9c764-mssm2   1/1     Running   0          34s
 cert-manager-webhook-5f57f59fbc-m8j2j     1/1     Running   0          34s
 
+export USERNAME=martinheinz
+export IMAGE=docker.io/$USERNAME/game-server-operator:latest
+
+docker build -t $IMAGE .  # ONLY FOR DEVELOPEMENT
+docker push $IMAGE        # ONLY FOR DEVELOPEMENT
+
+make deploy IMG=$IMAGE
+kubectl get crd
+NAME                                  CREATED AT
+servers.gameserver.martinheinz.dev    2021-01-06T13:03:10Z
+
+kubectl get pods -n game-server-operator-system
+NAME                                                       READY   STATUS             RESTARTS   AGE
+game-server-operator-controller-manager-6c7758447b-qnlhq   2/2     Running            0          8s
+
+# Options: rust, csgo, minecraft, factorio
+export GAME_NAME=...
+# For game-specific notes, see _Games_ section below
+kubectl apply -f config/samples/${GAME_NAME}.yaml
+
+kubectl get server ${GAME_NAME}
+NAME        STATUS   STORAGE   AGE
+GAME_NAME   Active   Bound     39h
 ```
 
-## Testing and Connecting
+# Games
 
-With `kubectl port-forward`:
+Before we can deploy individual servers, we first need to deploy the operator, for that see [Deployment section](#deployment-on-kind) 
 
+## CS:GO
+
+- Create server (modify file to override defaults):
 ```shell
-~ $ kubectl port-forward <pod-name> 27015:27015
-Forwarding from 127.0.0.1:27015 -> 27015
-Forwarding from [::1]:27015 -> 27015
+~ $ kubectl apply -f config/sample/rust.yaml
 ```
 
-In CS:GO:
+- Verify that the server is running:
+```shell
+~ $ kubectl get server csgo
+NAME   STATUS   STORAGE   AGE
+csgo   Active   Bound     39h
+```
 
-- Open console (using _tilde_ key)
+- Connecting to server (if running on _KinD_):
+```shell
+~ $ docker inspect --format='{{.NetworkSettings.IPAddress}}' operator-control-plane
+172.17.0.2  # Node IP
+```
+
+By default CS:GO uses port `27015`, which is exposed using NodePort at `30015`.
+
+- Start game and open console (using _tilde_ key)
 - Type:
 ```
-rcon_address 127.0.0.1:27015
+rcon_address 172.17.0.2:30015
 rcon_password <RCON_PASSWORD field in csgo Secret>
 rcon status
 ```
@@ -95,17 +126,7 @@ players : 0 humans, 1 bots (12/0 max) (hibernating)
 #end
 ```
 
-Using Kubernetes Service NodePort:
-
-By default CS:GO uses port `27015`, which is exposed using NodePort at `30015`.
-
-To connect to server running in KinD:
-
-```shell
-# Node IP
-docker inspect --format='{{.NetworkSettings.IPAddress}}' operator-control-plane
-172.17.0.2
-```
+Playing on server:
 
 - Open console in CS:GO (using _tilde_ key)
 - Type (assuming IP above and default config):
@@ -121,3 +142,39 @@ L 01/09/2021 - 09:02:59: "USERNAME<3><STEAM_1:1:11111111><>" connected, address 
 Client "USERNAME" connected (10.128.0.340:18320).
 Server waking up from hibernation
 ```
+
+## Rust
+
+Create server (modify file to override defaults):
+```shell
+~ $ kubectl apply -f config/sample/rust.yaml
+```
+
+Verify that the server is running:
+```shell
+~ $ kubectl get server rust
+NAME   STATUS   STORAGE   AGE
+rust   Active   Bound     39h
+
+~ $ kubectl exec deploy/rust-deployment -- rcon status
+RconApp::Relaying RCON command: status
+RconApp::Received message: hostname: My Awesome Server
+version : 2275 secure (secure mode enabled, connected to Steam3)
+map     : Procedural Map
+players : 0 (500 max) (0 queued) (0 joining)
+
+id name ping connected addr owner violation kicks 
+
+RconApp::Command relayed
+```
+
+Connecting to server (if running on _KinD_):
+```shell
+~ $ docker inspect --format='{{.NetworkSettings.IPAddress}}' operator-control-plane
+172.17.0.2  # Node IP
+```
+
+By default ports are set to: 
+- `30015` - user access
+- `30016` - RCON access
+- `30080` - RCON browser access

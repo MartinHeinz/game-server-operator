@@ -1,0 +1,44 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minecraft
+  namespace: default
+data:
+  RCON_PASSWORD: UkNPTl9QQVNTV09SRA==
+type: Opaque
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minecraft
+  namespace: default
+data:
+  EULA: "TRUE"
+  ENABLE_RCON: "true"
+  RCON_PORT: "28016"
+  SERVER_NAME: "KubernetesOperatorMinecraft"
+  # OVERRIDE_SERVER_PROPERTIES: "true"
+---
+apiVersion: gameserver.martinheinz.dev/v1alpha1
+kind: Server
+metadata:
+  name: minecraft
+  namespace: default
+spec:
+  serverName: minecraft
+  gameName: Minecraft
+  envFrom:
+    - configMapRef:
+        name: minecraft
+    - secretRef:
+        name: minecraft
+  resources:
+    limits:
+      cpu: "2"
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 64Mi
+  storage:
+    size: 12Gi
