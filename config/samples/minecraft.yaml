@@ -29,10 +29,11 @@ spec:
   serverName: minecraft
   gameName: Minecraft
   envFrom:
-    - configMapRef:
-        name: minecraft
-    - secretRef:
-        name: minecraft
+    configSource:
+      - configMapRef:
+          name: minecraft
+      - secretRef:
+          name: minecraft
   resources:
     limits:
       cpu: "2"

@@ -10,10 +10,12 @@ spec:
       targetPort: 27015
       nodePort: 30015
   envFrom:
-    - configMapRef:
-        name: csgo
-    - secretRef:
-        name: csgo
+    mountAs: Env
+    configSource:
+      - configMapRef:
+          name: csgo
+      - secretRef:
+          name: csgo
   storage:
 #    # This name defaults to .spec.serverName, if PVC with specified name exists,
 #    # new one will NOT be created and existing will be used instead, regardless of the "size"

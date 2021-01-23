@@ -59,8 +59,18 @@ var _ webhook.Validator = &Server{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Server) ValidateCreate() error {
 	serverlog.Info("validate create", "name", r.Name)
+	var allErrs field.ErrorList
+
+	// TODO Test
 	// Validation logic on object creation
-	return nil
+	if reflect.DeepEqual(r.Spec.EnvFrom, EnvFrom{}) {
+		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("envFrom"), "Environment configuration is required"))
+	} else if !(r.Spec.EnvFrom.MountAs == File && r.Spec.EnvFrom.MountPath != "") {
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("envFrom").Child("MountPath"), "MountPath is required when MountAs: File is specified"))
+	}
+	return apierrors.NewInvalid(
+		schema.GroupKind{Group: "gameserver.martinheinz.dev", Kind: "Server"},
+		r.Name, allErrs)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
@@ -94,6 +104,14 @@ func (r *Server) enforceImmutability(old runtime.Object) error {
 
 	if oldServer.Spec.GameName != r.Spec.GameName {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("gameName"), errorMessage))
+	}
+
+	// TODO Test
+	if !reflect.DeepEqual(oldServer.Spec.EnvFrom.MountAs, r.Spec.EnvFrom.MountAs) {
+		allErrs = append(allErrs, field.Forbidden(field.
+			NewPath("spec").
+			Child("EnvFrom").
+			Child("MountAs"), errorMessage))
 	}
 
 	return apierrors.NewInvalid(

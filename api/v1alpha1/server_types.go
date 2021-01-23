@@ -26,15 +26,32 @@ type ServerSpec struct {
 	// +optional
 	Ports []corev1.ServicePort `json:"port,omitempty"`
 
-	// +listType=atomic
 	// +optional
-	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
+	EnvFrom EnvFrom `json:"envFrom,omitempty"`
 
 	Storage *ServerStorage `json:"storage,omitempty"`
 
 	// +optional
 	ResourceRequirements *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
+
+type EnvFrom struct {
+	// +listType=atomic
+	ConfigSource []corev1.EnvFromSource `json:"configSource,omitempty"`
+	// +optional
+	// +kubebuilder:default:=Env
+	MountAs MountType `json:"mountAs,omitempty"`
+	// +optional
+	MountPath string `json:"mountPath,omitempty"`
+}
+
+// +kubebuilder:validation:Enum=File;Env
+type MountType string
+
+const (
+	File MountType = "File"
+	Env  MountType = "Env"
+)
 
 // +kubebuilder:validation:Enum=CSGO;Factorio;Rust;Minecraft
 type GameName string

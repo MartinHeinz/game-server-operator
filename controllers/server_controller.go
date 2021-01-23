@@ -203,13 +203,47 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 	gs.Deployment.Spec.Template.Labels = ls
 	gs.Deployment.Spec.Template.Spec.Volumes[0].VolumeSource.PersistentVolumeClaim.ClaimName = m.Name + pvcSuffix
 
-	gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom = nil
-	for i, res := range m.Spec.EnvFrom {
-		gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom = append(gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom, corev1.EnvFromSource{})
-		if res.ConfigMapRef != nil {
-			gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom[i].ConfigMapRef = res.ConfigMapRef
-		} else if res.SecretRef != nil {
-			gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom[i].SecretRef = res.SecretRef
+	// TODO Test
+	if m.Spec.EnvFrom.MountAs == gameserverv1alpha1.File {
+
+		// Setup `volumes` block of spec
+		volume := corev1.Volume{
+			Name: m.Name + "-config",
+			VolumeSource: corev1.VolumeSource{
+				Projected: &corev1.ProjectedVolumeSource{},
+			},
+		}
+		for _, res := range m.Spec.EnvFrom.ConfigSource {
+			projection := corev1.VolumeProjection{}
+			if res.ConfigMapRef != nil {
+				projection.ConfigMap = &corev1.ConfigMapProjection{
+					LocalObjectReference: corev1.LocalObjectReference{Name: res.ConfigMapRef.Name},
+				}
+			} else if res.SecretRef != nil {
+				projection.Secret = &corev1.SecretProjection{
+					LocalObjectReference: corev1.LocalObjectReference{Name: res.SecretRef.Name},
+				}
+			}
+			volume.VolumeSource.Projected.Sources = append(volume.VolumeSource.Projected.Sources, projection)
+
+		}
+		gs.Deployment.Spec.Template.Spec.Volumes = append(gs.Deployment.Spec.Template.Spec.Volumes, volume)
+
+		// Setup `volumeMounts` block of containers
+		gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append(gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+			Name:      m.Name + "-config", // Must be same as in `volume` var above
+			ReadOnly:  true,
+			MountPath: m.Spec.EnvFrom.MountPath,
+		})
+	} else {
+		gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom = nil
+		for i, res := range m.Spec.EnvFrom.ConfigSource {
+			gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom = append(gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom, corev1.EnvFromSource{})
+			if res.ConfigMapRef != nil {
+				gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom[i].ConfigMapRef = res.ConfigMapRef
+			} else if res.SecretRef != nil {
+				gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom[i].SecretRef = res.SecretRef
+			}
 		}
 	}
 
@@ -229,16 +263,68 @@ func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Serve
 	// If ConfigMap/Secret were changed
 	if !reflect.DeepEqual(m.Spec.EnvFrom, existingConfig) {
 		requeue = true
-		var newConfig []corev1.EnvFromSource
-		for i, res := range m.Spec.EnvFrom {
-			newConfig = append(newConfig, corev1.EnvFromSource{})
-			if res.ConfigMapRef != nil {
-				newConfig[i].ConfigMapRef = res.ConfigMapRef
-			} else if res.SecretRef != nil {
-				newConfig[i].SecretRef = res.SecretRef
+		// TODO Test
+		if m.Spec.EnvFrom.MountAs == gameserverv1alpha1.File {
+
+			// Remove old projected volume
+			for i, vol := range dep.Spec.Template.Spec.Volumes {
+				if vol.Name == m.Name+"-config" {
+					dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes[:i], dep.Spec.Template.Spec.Volumes[i+1:]...)
+				}
 			}
+
+			// Prepare new projected volume
+			volume := corev1.Volume{
+				Name: m.Name + "-config",
+				VolumeSource: corev1.VolumeSource{
+					Projected: &corev1.ProjectedVolumeSource{},
+				},
+			}
+
+			for _, res := range m.Spec.EnvFrom.ConfigSource {
+				projection := corev1.VolumeProjection{}
+				if res.ConfigMapRef != nil {
+					projection.ConfigMap = &corev1.ConfigMapProjection{
+						LocalObjectReference: corev1.LocalObjectReference{Name: res.ConfigMapRef.Name},
+					}
+				} else if res.SecretRef != nil {
+					projection.Secret = &corev1.SecretProjection{
+						LocalObjectReference: corev1.LocalObjectReference{Name: res.SecretRef.Name},
+					}
+				}
+				volume.VolumeSource.Projected.Sources = append(volume.VolumeSource.Projected.Sources, projection)
+			}
+			// Append new projected volume
+			dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, volume)
+
+			// Remove old volumeMount
+			for i, vol := range dep.Spec.Template.Spec.Containers[0].VolumeMounts {
+				if vol.Name == m.Name+"-config" {
+					dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(
+						dep.Spec.Template.Spec.Containers[0].VolumeMounts[:i],
+						dep.Spec.Template.Spec.Containers[0].VolumeMounts[i+1:]...,
+					)
+				}
+			}
+			// Append to volumeMount block of container
+			dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+				Name:      m.Name + "-config", // Must be same as in `volume` var above
+				ReadOnly:  true,
+				MountPath: m.Spec.EnvFrom.MountPath,
+			})
+
+		} else {
+			var newConfig []corev1.EnvFromSource
+			for i, res := range m.Spec.EnvFrom.ConfigSource {
+				newConfig = append(newConfig, corev1.EnvFromSource{})
+				if res.ConfigMapRef != nil {
+					newConfig[i].ConfigMapRef = res.ConfigMapRef
+				} else if res.SecretRef != nil {
+					newConfig[i].SecretRef = res.SecretRef
+				}
+			}
+			dep.Spec.Template.Spec.Containers[0].EnvFrom = newConfig
 		}
-		dep.Spec.Template.Spec.Containers[0].EnvFrom = newConfig
 	}
 
 	// If ResourceRequirements were changed

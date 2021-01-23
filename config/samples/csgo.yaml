@@ -26,10 +26,11 @@ spec:
   serverName: csgo
   gameName: "CSGO"
   envFrom:
-    - configMapRef:
-        name: csgo
-    - secretRef:
-        name: csgo
+    configSource:
+      - configMapRef:
+          name: csgo
+      - secretRef:
+          name: csgo
   storage:
     size: 12Gi
   resources:

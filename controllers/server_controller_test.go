@@ -121,15 +121,18 @@ var _ = Describe("Server controller", func() {
 					{Name: "27015-tcp", Port: 27015, NodePort: 30020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolTCP},
 					{Name: "27015-udp", Port: 27015, NodePort: 30020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolUDP},
 				},
-				EnvFrom: []corev1.EnvFromSource{{
-					ConfigMapRef: &corev1.ConfigMapEnvSource{
-						LocalObjectReference: corev1.LocalObjectReference{Name: ConfigMapName},
+				EnvFrom: gameserverv1alpha1.EnvFrom{
+					ConfigSource: []corev1.EnvFromSource{{
+						ConfigMapRef: &corev1.ConfigMapEnvSource{
+							LocalObjectReference: corev1.LocalObjectReference{Name: ConfigMapName},
+						},
+					}, {
+						SecretRef: &corev1.SecretEnvSource{
+							LocalObjectReference: corev1.LocalObjectReference{Name: SecretName},
+						},
 					},
-				}, {
-					SecretRef: &corev1.SecretEnvSource{
-						LocalObjectReference: corev1.LocalObjectReference{Name: SecretName},
 					},
-				},
+					MountAs: "Env",
 				},
 				Storage:              storage,
 				ResourceRequirements: resources,
@@ -245,7 +248,7 @@ var _ = Describe("Server controller", func() {
 	})
 
 	Describe("updating Server spec", func() {
-		Context("When Server config is successfully updated", func() {
+		Context("When Server config (using env vars) is successfully updated", func() {
 			It("Should modify Deployment with new attributes", func() {
 				ctx := context.Background()
 
@@ -284,12 +287,13 @@ var _ = Describe("Server controller", func() {
 				deploymentGeneration := createdDeployment.Generation
 
 				// Update Server with new ConfigMap
-				createdServer.Spec.EnvFrom = []corev1.EnvFromSource{
-					{ConfigMapRef: &corev1.ConfigMapEnvSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: newConfigMapName,
-						},
-					}}}
+				createdServer.Spec.EnvFrom = gameserverv1alpha1.EnvFrom{
+					ConfigSource: []corev1.EnvFromSource{
+						{ConfigMapRef: &corev1.ConfigMapEnvSource{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: newConfigMapName,
+							},
+						}}}}
 				Expect(k8sClient.Update(ctx, createdServer)).Should(Succeed())
 
 				// Lookup updated Server and verify that generation increased

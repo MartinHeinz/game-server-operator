@@ -14,9 +14,7 @@ metadata:
   name: factorio
   namespace: default
 data:
-  LOAD_LATEST_SAVE: "false"
-  GENERATE_NEW_SAVE: "true"
-  SAVE_NAME: "factorio_save"
+  server-whitelist.json: '["you", "friend"]'
 ---
 apiVersion: gameserver.martinheinz.dev/v1alpha1
 kind: Server
@@ -27,10 +25,13 @@ spec:
   serverName: factorio
   gameName: Factorio
   envFrom:
-    - configMapRef:
-        name: factorio
-    - secretRef:
-        name: factorio
+    mountAs: File
+    mountPath: "/factorio/config"
+    configSource:
+      - configMapRef:
+          name: factorio
+      - secretRef:
+          name: factorio
   resources:
     limits:
       cpu: "2"

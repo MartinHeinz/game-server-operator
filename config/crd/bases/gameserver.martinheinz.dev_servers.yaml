@@ -52,41 +52,56 @@ spec:
           metadata:
             type: object
           spec:
-            description: ServerSpec defines the desired state of Server
+            description: 'EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN! NOTE:
+              json tags are required.  Any new fields you add must have json tags
+              for the fields to be serialized. ServerSpec defines the desired state
+              of Server'
             properties:
               envFrom:
-                items:
-                  description: EnvFromSource represents the source of a set of ConfigMaps
-                  properties:
-                    configMapRef:
-                      description: The ConfigMap to select from
+                properties:
+                  configSource:
+                    items:
+                      description: EnvFromSource represents the source of a set of
+                        ConfigMaps
                       properties:
-                        name:
-                          description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                            TODO: Add other useful fields. apiVersion, kind, uid?'
+                        configMapRef:
+                          description: The ConfigMap to select from
+                          properties:
+                            name:
+                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                TODO: Add other useful fields. apiVersion, kind, uid?'
+                              type: string
+                            optional:
+                              description: Specify whether the ConfigMap must be defined
+                              type: boolean
+                          type: object
+                        prefix:
+                          description: An optional identifier to prepend to each key
+                            in the ConfigMap. Must be a C_IDENTIFIER.
                           type: string
-                        optional:
-                          description: Specify whether the ConfigMap must be defined
-                          type: boolean
+                        secretRef:
+                          description: The Secret to select from
+                          properties:
+                            name:
+                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                TODO: Add other useful fields. apiVersion, kind, uid?'
+                              type: string
+                            optional:
+                              description: Specify whether the Secret must be defined
+                              type: boolean
+                          type: object
                       type: object
-                    prefix:
-                      description: An optional identifier to prepend to each key in
-                        the ConfigMap. Must be a C_IDENTIFIER.
-                      type: string
-                    secretRef:
-                      description: The Secret to select from
-                      properties:
-                        name:
-                          description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                            TODO: Add other useful fields. apiVersion, kind, uid?'
-                          type: string
-                        optional:
-                          description: Specify whether the Secret must be defined
-                          type: boolean
-                      type: object
-                  type: object
-                type: array
-                x-kubernetes-list-type: atomic
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  mountAs:
+                    default: Env
+                    enum:
+                    - File
+                    - Env
+                    type: string
+                  mountPath:
+                    type: string
+                type: object
               gameName:
                 enum:
                 - CSGO

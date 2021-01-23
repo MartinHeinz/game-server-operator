@@ -29,10 +29,11 @@ spec:
   serverName: rust
   gameName: Rust
   envFrom:
-    - configMapRef:
-        name: rust
-    - secretRef:
-        name: rust
+    configSource:
+      - configMapRef:
+          name: rust
+      - secretRef:
+          name: rust
   resources:
     limits:
       cpu: "2"
