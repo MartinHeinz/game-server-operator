@@ -52,14 +52,11 @@ spec:
           metadata:
             type: object
           spec:
-            description: 'EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN! NOTE:
-              json tags are required.  Any new fields you add must have json tags
-              for the fields to be serialized. ServerSpec defines the desired state
-              of Server'
+            description: ServerSpec defines the desired state of Server
             properties:
-              envFrom:
+              config:
                 properties:
-                  configSource:
+                  from:
                     items:
                       description: EnvFromSource represents the source of a set of
                         ConfigMaps

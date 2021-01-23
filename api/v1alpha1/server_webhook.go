@@ -63,9 +63,9 @@ func (r *Server) ValidateCreate() error {
 
 	// TODO Test
 	// Validation logic on object creation
-	if reflect.DeepEqual(r.Spec.EnvFrom, EnvFrom{}) {
+	if reflect.DeepEqual(r.Spec.Config, Config{}) {
 		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("envFrom"), "Environment configuration is required"))
-	} else if !(r.Spec.EnvFrom.MountAs == File && r.Spec.EnvFrom.MountPath != "") {
+	} else if !(r.Spec.Config.MountAs == File && r.Spec.Config.MountPath != "") {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("envFrom").Child("MountPath"), "MountPath is required when MountAs: File is specified"))
 	}
 	return apierrors.NewInvalid(
@@ -107,7 +107,7 @@ func (r *Server) enforceImmutability(old runtime.Object) error {
 	}
 
 	// TODO Test
-	if !reflect.DeepEqual(oldServer.Spec.EnvFrom.MountAs, r.Spec.EnvFrom.MountAs) {
+	if !reflect.DeepEqual(oldServer.Spec.Config.MountAs, r.Spec.Config.MountAs) {
 		allErrs = append(allErrs, field.Forbidden(field.
 			NewPath("spec").
 			Child("EnvFrom").

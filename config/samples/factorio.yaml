@@ -24,14 +24,14 @@ metadata:
 spec:
   serverName: factorio
   gameName: Factorio
-  envFrom:
-    mountAs: File
+  config:
+    from:
+    - configMapRef:
+        name: factorio
+    - secretRef:
+        name: factorio
+    injectAs: File
     mountPath: "/factorio/config"
-    configSource:
-      - configMapRef:
-          name: factorio
-      - secretRef:
-          name: factorio
   resources:
     limits:
       cpu: "2"

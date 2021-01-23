@@ -27,7 +27,7 @@ type ServerSpec struct {
 	Ports []corev1.ServicePort `json:"port,omitempty"`
 
 	// +optional
-	EnvFrom EnvFrom `json:"envFrom,omitempty"`
+	Config Config `json:"config,omitempty"`
 
 	Storage *ServerStorage `json:"storage,omitempty"`
 
@@ -35,9 +35,9 @@ type ServerSpec struct {
 	ResourceRequirements *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
-type EnvFrom struct {
+type Config struct {
 	// +listType=atomic
-	ConfigSource []corev1.EnvFromSource `json:"configSource,omitempty"`
+	From []corev1.EnvFromSource `json:"from,omitempty"`
 	// +optional
 	// +kubebuilder:default:=Env
 	MountAs MountType `json:"mountAs,omitempty"`

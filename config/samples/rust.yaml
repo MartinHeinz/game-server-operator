@@ -28,8 +28,8 @@ metadata:
 spec:
   serverName: rust
   gameName: Rust
-  envFrom:
-    configSource:
+  config:
+    from:
       - configMapRef:
           name: rust
       - secretRef:

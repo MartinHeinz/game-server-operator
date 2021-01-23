@@ -28,8 +28,8 @@ metadata:
 spec:
   serverName: minecraft
   gameName: Minecraft
-  envFrom:
-    configSource:
+  config:
+    from:
       - configMapRef:
           name: minecraft
       - secretRef:

@@ -204,7 +204,7 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 	gs.Deployment.Spec.Template.Spec.Volumes[0].VolumeSource.PersistentVolumeClaim.ClaimName = m.Name + pvcSuffix
 
 	// TODO Test
-	if m.Spec.EnvFrom.MountAs == gameserverv1alpha1.File {
+	if m.Spec.Config.MountAs == gameserverv1alpha1.File {
 
 		// Setup `volumes` block of spec
 		volume := corev1.Volume{
@@ -213,7 +213,7 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 				Projected: &corev1.ProjectedVolumeSource{},
 			},
 		}
-		for _, res := range m.Spec.EnvFrom.ConfigSource {
+		for _, res := range m.Spec.Config.From {
 			projection := corev1.VolumeProjection{}
 			if res.ConfigMapRef != nil {
 				projection.ConfigMap = &corev1.ConfigMapProjection{
@@ -233,11 +233,11 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 		gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append(gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 			Name:      m.Name + "-config", // Must be same as in `volume` var above
 			ReadOnly:  true,
-			MountPath: m.Spec.EnvFrom.MountPath,
+			MountPath: m.Spec.Config.MountPath,
 		})
 	} else {
 		gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom = nil
-		for i, res := range m.Spec.EnvFrom.ConfigSource {
+		for i, res := range m.Spec.Config.From {
 			gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom = append(gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom, corev1.EnvFromSource{})
 			if res.ConfigMapRef != nil {
 				gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom[i].ConfigMapRef = res.ConfigMapRef
@@ -261,10 +261,10 @@ func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Serve
 	requeue := false
 
 	// If ConfigMap/Secret were changed
-	if !reflect.DeepEqual(m.Spec.EnvFrom, existingConfig) {
+	if !reflect.DeepEqual(m.Spec.Config, existingConfig) {
 		requeue = true
 		// TODO Test
-		if m.Spec.EnvFrom.MountAs == gameserverv1alpha1.File {
+		if m.Spec.Config.MountAs == gameserverv1alpha1.File {
 
 			// Remove old projected volume
 			for i, vol := range dep.Spec.Template.Spec.Volumes {
@@ -281,7 +281,7 @@ func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Serve
 				},
 			}
 
-			for _, res := range m.Spec.EnvFrom.ConfigSource {
+			for _, res := range m.Spec.Config.From {
 				projection := corev1.VolumeProjection{}
 				if res.ConfigMapRef != nil {
 					projection.ConfigMap = &corev1.ConfigMapProjection{
@@ -310,12 +310,12 @@ func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Serve
 			dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 				Name:      m.Name + "-config", // Must be same as in `volume` var above
 				ReadOnly:  true,
-				MountPath: m.Spec.EnvFrom.MountPath,
+				MountPath: m.Spec.Config.MountPath,
 			})
 
 		} else {
 			var newConfig []corev1.EnvFromSource
-			for i, res := range m.Spec.EnvFrom.ConfigSource {
+			for i, res := range m.Spec.Config.From {
 				newConfig = append(newConfig, corev1.EnvFromSource{})
 				if res.ConfigMapRef != nil {
 					newConfig[i].ConfigMapRef = res.ConfigMapRef
