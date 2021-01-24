@@ -14,7 +14,8 @@ metadata:
 spec:
   serverName: csgo
   gameName: "CSGO"
-  envFrom:
+  config:
+    from:
     - configMapRef:
         name: csgo
     - secretRef:
@@ -255,17 +256,19 @@ By default ports are set to:
 
 ## Changing Default Server Configuration
 
-| Parameter                 | Description                                                                                          |
-|---------------------------|------------------------------------------------------------------------------------------------------|
-| gameName                  | Name of the game. One of the `CSGO`, `Rust`, `Factorio`, `Minecraft`                                 |
-| envFrom.configMapRef.name | Name of configMap used for configuration                                                             |
-| envFrom.secretRef.name    | Name of Secret used for configuration of sensitive information                                       |
-| port.targetPort           | Port that container is listening on (Optional)                                                       |
-| port.port                 | Port exposed by generated Service (Optional)                                                         |
-| port.nodePort             | Port that will be publicly exposed on cluster node (Optional)                                        |
-| storage.size              | Size of PVC, e.g. `12Gi`                                                                             |
-| resources.requests        | Minimum resources allocated for server container (Optional, Defaults to `memory: 64Mi`, `cpu: 128m`) |
-| resources.limits          | Minimum resources available for server container (Optional, Defaults to `memory: 1`, `cpu: 1Gi`)     |
+| Parameter                     | Description                                                                                                                                 |
+|-------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| gameName                      | Name of the game. One of the `CSGO`, `Rust`, `Factorio`, `Minecraft`                                                                        |
+| config.from.configMapRef.name | Name of configMap used for configuration                                                                                                    |
+| config.from.secretRef.name    | Name of Secret used for configuration of sensitive information                                                                              |
+| config.from.mountAs           | Specifies whether to mount configuration as environment variables or as files in PVC (Optional, Defaults to `Env`, Options: `Env`, `File` ) |
+| config.from.mountPath         | Specifies mount path when using config from files, only needed when `config.from.mountAs` is set to `File`                                  |
+| port.targetPort               | Port that container is listening on (Optional)                                                                                              |
+| port.port                     | Port exposed by generated Service (Optional)                                                                                                |
+| port.nodePort                 | Port that will be publicly exposed on cluster node (Optional)                                                                               |
+| storage.size                  | Size of PVC, e.g. `12Gi`                                                                                                                    |
+| resources.requests            | Minimum resources allocated for server container (Optional, Defaults to `memory: 64Mi`, `cpu: 128m`)                                        |
+| resources.limits              | Minimum resources available for server container (Optional, Defaults to `memory: 1`, `cpu: 1Gi`)                                            |
 
 
 Complete configuration example:
@@ -282,11 +285,13 @@ spec:
     - port: 27015
       targetPort: 27015
       nodePort: 30015
-  envFrom:
-    - configMapRef:
-        name: csgo
-    - secretRef:
-        name: csgo
+  config:
+    from:
+      - configMapRef:
+          name: csgo
+      - secretRef:
+          name: csgo
+    mountAs: Env
   storage:
     size: 12Gi
   resources:
@@ -303,6 +308,7 @@ To see what environment variables can be used in configMap and Secret for each g
 - [Rust configuration options](https://github.com/Didstopia/rust-server#how-to-run-the-server)
 - [CS:GO configuration options](https://github.com/kaimallea/csgo#environment-variable-overrides)
 - [Minecraft configuration options](https://github.com/itzg/docker-minecraft-server/blob/master/README.md)
+- [Factorio configuration options](https://github.com/factoriotools/factorio-docker#volumes)
 
 ## Contributing
 
