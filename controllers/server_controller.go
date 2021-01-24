@@ -203,14 +203,15 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 	gs.Deployment.Spec.Template.Labels = ls
 	gs.Deployment.Spec.Template.Spec.Volumes[0].VolumeSource.PersistentVolumeClaim.ClaimName = m.Name + pvcSuffix
 
-	// TODO Test
 	if m.Spec.Config.MountAs == gameserverv1alpha1.File {
 
 		// Setup `volumes` block of spec
 		volume := corev1.Volume{
 			Name: m.Name + "-config",
 			VolumeSource: corev1.VolumeSource{
-				Projected: &corev1.ProjectedVolumeSource{},
+				Projected: &corev1.ProjectedVolumeSource{
+					DefaultMode: func(val int32) *int32 { return &val }(0777),
+				},
 			},
 		}
 		for _, res := range m.Spec.Config.From {
@@ -232,7 +233,7 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 		// Setup `volumeMounts` block of containers
 		gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append(gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 			Name:      m.Name + "-config", // Must be same as in `volume` var above
-			ReadOnly:  true,
+			ReadOnly:  false,
 			MountPath: m.Spec.Config.MountPath,
 		})
 	} else {
@@ -277,7 +278,9 @@ func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Serve
 			volume := corev1.Volume{
 				Name: m.Name + "-config",
 				VolumeSource: corev1.VolumeSource{
-					Projected: &corev1.ProjectedVolumeSource{},
+					Projected: &corev1.ProjectedVolumeSource{
+						DefaultMode: func(val int32) *int32 { return &val }(0777),
+					},
 				},
 			}
 
