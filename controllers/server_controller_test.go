@@ -36,7 +36,7 @@ var _ = Describe("Server controller", func() {
 	)
 
 	var (
-		gameSettings GameSetting
+		gameSettings gameserverv1alpha1.GameSetting
 		server       = &gameserverv1alpha1.Server{}
 		resources    = &corev1.ResourceRequirements{}
 		storage      = &gameserverv1alpha1.ServerStorage{Size: "2G"}
@@ -50,7 +50,7 @@ var _ = Describe("Server controller", func() {
 	)
 
 	BeforeEach(func() {
-		for name, game := range Games {
+		for name, game := range gameserverv1alpha1.Games {
 			if name == GameName {
 				gameSettings = game
 				break

@@ -50,6 +50,10 @@ func (r *Server) Default() {
 			},
 		}
 	}
+
+	if r.Spec.Ports == nil {
+		r.Spec.Ports = Games[r.Spec.GameName].Service.Spec.Ports
+	}
 }
 
 // +kubebuilder:webhook:path=/validate-gameserver-martinheinz-dev-v1alpha1-server,mutating=false,failurePolicy=fail,sideEffects=None,groups=gameserver.martinheinz.dev,resources=servers,verbs=create;update,versions=v1alpha1,name=vserver.kb.io,admissionReviewVersions={v1,v1beta1}
@@ -115,7 +119,9 @@ func (r *Server) enforceImmutability(old runtime.Object) error {
 			Child("EnvFrom").
 			Child("MountAs"), errorMessage))
 	}
-
+	if len(allErrs) == 0 {
+		return nil
+	}
 	return apierrors.NewInvalid(
 		schema.GroupKind{Group: "gameserver.martinheinz.dev", Kind: "Server"},
 		r.Name, allErrs)
