@@ -230,11 +230,28 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 		gs.Deployment.Spec.Template.Spec.Volumes = append(gs.Deployment.Spec.Template.Spec.Volumes, volume)
 
 		// Setup `volumeMounts` block of containers
-		gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append(gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
-			Name:      m.Name + "-config", // Must be same as in `volume` var above
-			ReadOnly:  false,
-			MountPath: m.Spec.Config.MountPath,
-		})
+		// If mounted game config is present, then replace it
+		replaced := false
+		for i, volumeMount := range gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts {
+			if volumeMount.Name == m.Name+"-config" {
+				gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts[i] = corev1.VolumeMount{
+					Name:      m.Name + "-config", // Must be same as in `volume` var above
+					ReadOnly:  false,
+					MountPath: m.Spec.Config.MountPath,
+				}
+				replaced = true
+			}
+		}
+
+		// If mounted game config is not present, append it
+		if !replaced {
+			gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append(gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+				Name:      m.Name + "-config", // Must be same as in `volume` var above
+				ReadOnly:  false,
+				MountPath: m.Spec.Config.MountPath,
+			})
+		}
+
 	} else {
 		gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom = nil
 		for i, res := range m.Spec.Config.From {
@@ -261,7 +278,7 @@ func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Serve
 	requeue := false
 
 	// If ConfigMap/Secret were changed
-	if !reflect.DeepEqual(m.Spec.Config, existingConfig) {
+	if !reflect.DeepEqual(m.Spec.Config, existingConfig) { // TODO VolumeMounts are not properly removed/replaced
 		requeue = true
 		if m.Spec.Config.MountAs == gameserverv1alpha1.File {
 
