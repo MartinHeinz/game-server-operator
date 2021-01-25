@@ -26,7 +26,6 @@ metadata:
   name: minecraft
   namespace: default
 spec:
-  serverName: minecraft
   gameName: Minecraft
   config:
     from:

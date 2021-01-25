@@ -115,8 +115,7 @@ var _ = Describe("Server controller", func() {
 				Namespace: ServerNamespace,
 			},
 			Spec: gameserverv1alpha1.ServerSpec{
-				ServerName: ServerName,
-				GameName:   gameserverv1alpha1.CSGO,
+				GameName: gameserverv1alpha1.CSGO,
 				Ports: []corev1.ServicePort{
 					{Name: "27015-tcp", Port: 27015, NodePort: 30020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolTCP},
 					{Name: "27015-udp", Port: 27015, NodePort: 30020, TargetPort: intstr.IntOrString{Type: 0, IntVal: 27015, StrVal: ""}, Protocol: corev1.ProtocolUDP},

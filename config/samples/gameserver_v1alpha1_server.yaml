@@ -3,7 +3,6 @@ kind: Server
 metadata:
   name: csgo
 spec:
-  serverName: csgo
   gameName: "CSGO"
   port:  # These are defaults, can be omitted
     - port: 27015
@@ -17,9 +16,6 @@ spec:
       - secretRef:
           name: csgo
   storage:
-#    # This name defaults to .spec.serverName, if PVC with specified name exists,
-#    # new one will NOT be created and existing will be used instead, regardless of the "size"
-#    name: "csgo"
     size: 12Gi
   resources:
     requests:

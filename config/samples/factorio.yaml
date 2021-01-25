@@ -573,7 +573,6 @@ metadata:
   name: factorio
   namespace: default
 spec:
-  serverName: factorio
   gameName: Factorio
   config:
     from:

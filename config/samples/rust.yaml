@@ -26,7 +26,6 @@ metadata:
   name: rust
   namespace: default
 spec:
-  serverName: rust
   gameName: Rust
   config:
     from:

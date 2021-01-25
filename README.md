@@ -12,7 +12,6 @@ kind: Server
 metadata:
   name: csgo
 spec:
-  serverName: csgo
   gameName: "CSGO"
   config:
     from:
@@ -279,7 +278,6 @@ kind: Server
 metadata:
   name: csgo
 spec:
-  serverName: csgo
   gameName: "CSGO"
   port:  # These ports are defaults, can be omitted
     - port: 27015

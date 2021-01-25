@@ -188,9 +188,6 @@ spec:
                       to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                     type: object
                 type: object
-              serverName:
-                description: If omitted, defaults to CRD name
-                type: string
               storage:
                 description: ServerStorage ...
                 properties:

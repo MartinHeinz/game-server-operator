@@ -19,10 +19,7 @@ type ServerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make manifests" to regenerate code after modifying this file
 
-	// If omitted, defaults to CRD name
-	// +optional
-	ServerName string   `json:"serverName,omitempty"`
-	GameName   GameName `json:"gameName"`
+	GameName GameName `json:"gameName"`
 
 	// +listType=atomic
 	// +optional
