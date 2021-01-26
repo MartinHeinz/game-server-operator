@@ -191,16 +191,19 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs *gameserverv1alpha1.GameSetting) *appsv1.Deployment {
 	ls := labelsForServer(m.Name)
 
-	gs.Deployment.ObjectMeta = metav1.ObjectMeta{
+	dep := &appsv1.Deployment{}
+	gs.Deployment.DeepCopyInto(dep)
+
+	dep.ObjectMeta = metav1.ObjectMeta{
 		Name:      m.Name + depSuffix,
 		Namespace: m.Namespace,
 		Labels:    ls,
 	}
-	gs.Deployment.Spec.Selector = &metav1.LabelSelector{
+	dep.Spec.Selector = &metav1.LabelSelector{
 		MatchLabels: ls,
 	}
-	gs.Deployment.Spec.Template.Labels = ls
-	gs.Deployment.Spec.Template.Spec.Volumes[0].VolumeSource.PersistentVolumeClaim.ClaimName = m.Name + pvcSuffix
+	dep.Spec.Template.Labels = ls
+	dep.Spec.Template.Spec.Volumes[0].VolumeSource.PersistentVolumeClaim.ClaimName = m.Name + pvcSuffix
 
 	if m.Spec.Config.MountAs == gameserverv1alpha1.File {
 
@@ -227,14 +230,14 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 			volume.VolumeSource.Projected.Sources = append(volume.VolumeSource.Projected.Sources, projection)
 
 		}
-		gs.Deployment.Spec.Template.Spec.Volumes = append(gs.Deployment.Spec.Template.Spec.Volumes, volume)
+		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, volume)
 
 		// Setup `volumeMounts` block of containers
 		// If mounted game config is present, then replace it
 		replaced := false
-		for i, volumeMount := range gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts {
+		for i, volumeMount := range dep.Spec.Template.Spec.Containers[0].VolumeMounts {
 			if volumeMount.Name == m.Name+"-config" {
-				gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts[i] = corev1.VolumeMount{
+				dep.Spec.Template.Spec.Containers[0].VolumeMounts[i] = corev1.VolumeMount{
 					Name:      m.Name + "-config", // Must be same as in `volume` var above
 					ReadOnly:  false,
 					MountPath: m.Spec.Config.MountPath,
@@ -245,7 +248,7 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 
 		// If mounted game config is not present, append it
 		if !replaced {
-			gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append(gs.Deployment.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+			dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 				Name:      m.Name + "-config", // Must be same as in `volume` var above
 				ReadOnly:  false,
 				MountPath: m.Spec.Config.MountPath,
@@ -253,23 +256,23 @@ func (r *ServerReconciler) deploymentForServer(m *gameserverv1alpha1.Server, gs 
 		}
 
 	} else {
-		gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom = nil
+		dep.Spec.Template.Spec.Containers[0].EnvFrom = nil
 		for i, res := range m.Spec.Config.From {
-			gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom = append(gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom, corev1.EnvFromSource{})
+			dep.Spec.Template.Spec.Containers[0].EnvFrom = append(dep.Spec.Template.Spec.Containers[0].EnvFrom, corev1.EnvFromSource{})
 			if res.ConfigMapRef != nil {
-				gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom[i].ConfigMapRef = res.ConfigMapRef
+				dep.Spec.Template.Spec.Containers[0].EnvFrom[i].ConfigMapRef = res.ConfigMapRef
 			} else if res.SecretRef != nil {
-				gs.Deployment.Spec.Template.Spec.Containers[0].EnvFrom[i].SecretRef = res.SecretRef
+				dep.Spec.Template.Spec.Containers[0].EnvFrom[i].SecretRef = res.SecretRef
 			}
 		}
 	}
 
 	if m.Spec.ResourceRequirements != nil {
-		gs.Deployment.Spec.Template.Spec.Containers[0].Resources = *m.Spec.ResourceRequirements
+		dep.Spec.Template.Spec.Containers[0].Resources = *m.Spec.ResourceRequirements
 	}
 
-	ctrl.SetControllerReference(m, &gs.Deployment, r.Scheme)
-	return &gs.Deployment
+	ctrl.SetControllerReference(m, dep, r.Scheme)
+	return dep
 }
 
 func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Server, dep *appsv1.Deployment) (*appsv1.Deployment, bool) {
@@ -278,7 +281,7 @@ func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Serve
 	requeue := false
 
 	// If ConfigMap/Secret were changed
-	if !reflect.DeepEqual(m.Spec.Config, existingConfig) { // TODO VolumeMounts are not properly removed/replaced
+	if !reflect.DeepEqual(m.Spec.Config, existingConfig) {
 		requeue = true
 		if m.Spec.Config.MountAs == gameserverv1alpha1.File {
 
@@ -357,19 +360,21 @@ func (r *ServerReconciler) updateDeploymentForServer(m *gameserverv1alpha1.Serve
 func (r *ServerReconciler) serviceForServer(m *gameserverv1alpha1.Server, gs *gameserverv1alpha1.GameSetting) *corev1.Service {
 	ls := labelsForServer(m.Name)
 
-	gs.Service.ObjectMeta = metav1.ObjectMeta{
+	svc := &corev1.Service{}
+	gs.Service.DeepCopyInto(svc)
+	svc.ObjectMeta = metav1.ObjectMeta{
 		Name:      m.Name + svcSuffix,
 		Namespace: m.Namespace,
 		Labels:    ls,
 	}
-	gs.Service.Spec.Selector = ls
+	svc.Spec.Selector = ls
 
 	if m.Spec.Ports != nil {
-		gs.Service.Spec.Ports = m.Spec.Ports
+		svc.Spec.Ports = m.Spec.Ports
 	}
 
-	ctrl.SetControllerReference(m, &gs.Service, r.Scheme)
-	return &gs.Service
+	ctrl.SetControllerReference(m, svc, r.Scheme)
+	return svc
 }
 
 func (r *ServerReconciler) updateServiceForServer(m *gameserverv1alpha1.Server, svc *corev1.Service) (*corev1.Service, bool) {
@@ -389,18 +394,21 @@ func (r *ServerReconciler) updateServiceForServer(m *gameserverv1alpha1.Server, 
 func (r *ServerReconciler) persistentVolumeClaimForServer(m *gameserverv1alpha1.Server, gs *gameserverv1alpha1.GameSetting) *corev1.PersistentVolumeClaim {
 	ls := labelsForServer(m.Name)
 
-	gs.PersistentVolumeClaim.ObjectMeta = metav1.ObjectMeta{
+	pvc := &corev1.PersistentVolumeClaim{}
+	gs.PersistentVolumeClaim.DeepCopyInto(pvc)
+
+	pvc.ObjectMeta = metav1.ObjectMeta{
 		Name:      m.Name + pvcSuffix,
 		Namespace: m.Namespace,
 		Labels:    ls,
 	}
 
-	gs.PersistentVolumeClaim.Spec.Resources.Requests = corev1.ResourceList{
+	pvc.Spec.Resources.Requests = corev1.ResourceList{
 		corev1.ResourceStorage: resource.MustParse(m.Spec.Storage.Size),
 	}
 
-	ctrl.SetControllerReference(m, &gs.PersistentVolumeClaim, r.Scheme) // TODO if PVC is to be preserved, then do not set Server as owner
-	return &gs.PersistentVolumeClaim
+	ctrl.SetControllerReference(m, pvc, r.Scheme) // TODO if PVC is to be preserved, then do not set Server as owner
+	return pvc
 }
 
 func labelsForServer(name string) map[string]string {
